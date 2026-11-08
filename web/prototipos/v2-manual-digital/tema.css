@@ -1,0 +1,82 @@
+/* V2 · Manual digital: segue o manual na versão para produtos digitais. Menu lateral verde-escuro,
+   box simplificado de cantos retos, Exo 2 nos títulos (itálico só no título da página) e paleta oficial. */
+:root {
+  --fundo: #f6f8f4;
+  --sup: #ffffff;
+  --sup-2: #f0f4ec;
+  --sup-3: #e1e9da;
+  --texto: #18201a;
+  --texto-2: #4a5a4c;
+  --texto-3: #5f6a60;
+  --linha: #dde5d6;
+  --linha-forte: #bfcdb5;
+  --marca-bg: #e6f2dc;
+  --acao: #146E37;
+  --acao-hover: #0f5a2c;
+
+  --falha: #E60050; --falha-txt: #a1003a; --falha-bg: #fde8ef;
+  --atraso: #FF6400; --atraso-txt: #9a3d00; --atraso-bg: #fff0e5;
+  --rodando: #1fb8e0; --rodando-txt: #06708f; --rodando-bg: #e2f7fd;
+  --ressalva: #FFCD00; --ressalva-txt: #6b5200; --ressalva-bg: #fff8d6;
+  --ok: #3FA110; --ok-txt: #146E37; --ok-bg: #e8f3df;
+  --pausado: #5A645A; --pausado-txt: #5A645A; --pausado-bg: #eceeea;
+
+  --titulo-estilo: normal;
+  --raio-box: 0;
+  --raio-peq: 2px;
+  --traco: 1.25;
+
+  --topo-bg: #146E37;
+  --topo-txt: #ffffff;
+  --topo-linha: #146E37;
+  --nav-txt: #d7e6c8;
+  --nav-ativo: #146E37;
+  --nav-ativo-linha: #ffffff;
+}
+
+.logo-slot--negativo { color: #ffffff; }
+.pagina__cab h1 { font-style: italic; }
+.topo__produto { font-style: italic; }
+
+@media (min-width: 900px) {
+  .shell--trilho .topo { background: linear-gradient(180deg, #146E37 0%, #146E37 55%, #2b8a22 100%); }
+  .shell--trilho .nav__item { color: #e7f0de; }
+  .shell--trilho .nav__item:hover { background: rgb(255 255 255 / 0.1); color: #fff; }
+  .shell--trilho .nav__item[aria-current="page"] { background: #ffffff; color: #146E37; }
+  .shell--trilho .busca input { background: rgb(255 255 255 / 0.12); border-color: rgb(255 255 255 / 0.28); color: #fff; }
+  .shell--trilho .busca input::placeholder { color: #d7e6c8; }
+  .shell--trilho .busca .ico { color: #d7e6c8; }
+  .shell--trilho .botao--tv { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.45); }
+  .shell--trilho .botao--tv:hover { background: rgb(255 255 255 / 0.12); }
+  .shell--trilho .atualizado { color: #e7f0de; }
+  .shell--trilho .atualizado__pulso { background: #ffffff; }
+  .shell--trilho .topo :focus-visible { outline-color: #ffffff; }
+}
+
+/* Contadores com a linha de estado no topo: leitura rápida da faixa. */
+.contador { border-top: 3px solid var(--st); }
+.contador--zero { border-top-color: var(--linha); }
+.faixa__hoje { background: #146E37; color: #d7e6c8; }
+.faixa__hoje-num { color: #ffffff; }
+
+.secao__cab h2 { color: #146E37; }
+.tabela__grupo th { color: #146E37; }
+.segmentado button[aria-pressed="true"] { background: #146E37; color: #fff; box-shadow: none; }
+.barras__val { background: #3FA110; }
+
+/* Na TV o topo vira a faixa verde-escura. */
+.tv { --tv-fundo: #f6f8f4; }
+.tv__cab { margin: -1.6vw -2vw 0; padding: 1vw 2vw; background: #146E37; color: #fff; }
+.tv__cab .logo-slot { color: #fff; }
+.tv__sair { background: transparent; color: #fff; border-color: rgb(255 255 255 / 0.5); }
+
+@media (max-width: 899px) {
+  .topo .busca input { background: rgb(255 255 255 / 0.12); border-color: rgb(255 255 255 / 0.3); }
+  .topo .busca .ico { color: #d7e6c8; }
+  .topo .busca input:focus { background: #ffffff; color: var(--texto); }
+  .topo .busca:focus-within .ico { color: var(--texto-3); }
+  .atualizado__pulso { background: #ffffff; }
+}
+@media (max-width: 719px) {
+  .nav { --nav-mobile-bg: #146E37; --nav-mobile-txt: #d7e6c8; --nav-mobile-ativo: #ffffff; border-top-color: #146E37; }
+}

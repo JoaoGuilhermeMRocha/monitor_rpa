@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monitor de Automações · V6 Fila e execução</title>
+<link rel="icon" href="data:,">
+<script>
+  // Tema antes de desenhar a tela, para não piscar: a escolha salva ou, sem escolha, a do sistema.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('monitor-tema'); } catch (e) { /* sem armazenamento */ }
+    if (t !== 'claro' && t !== 'escuro') t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
+    document.documentElement.dataset.tema = t;
+  })();
+</script>
+<link rel="stylesheet" href="../compartilhado/base.css">
+<link rel="stylesheet" href="tema.css">
+</head>
+<body>
+<div id="app"></div>
+<script>window.MONITOR_CONFIG = { versao: 'V6', nomeVersao: 'Fila e execução', visao: 'operacao', detalhe: 'gaveta', nav: 'abas' };</script>
+<script src="../compartilhado/dados-demo.js"></script>
+<script src="../compartilhado/monitor.js"></script>
+</body>
+</html>

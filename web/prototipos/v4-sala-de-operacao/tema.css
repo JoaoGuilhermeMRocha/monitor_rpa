@@ -1,0 +1,66 @@
+/* V4 · Sala de operação: escuro, pensado para a TV da sala e para quem passa o dia olhando.
+   O fundo vem do neutro escuro da marca, o Verde Sicredi marca o que está em dia e o logo usa a versão negativa. */
+:root {
+  color-scheme: dark;
+  --fundo: #0e130f;
+  --sup: #161d17;
+  --sup-2: #1d261f;
+  --sup-3: #283229;
+  --texto: #e8efe6;
+  --texto-2: #aab7ab;
+  --texto-3: #85928a;
+  --linha: #263027;
+  --linha-forte: #3a473c;
+  --marca: #3FA110;
+  --marca-bg: #1c3317;
+  --acao: #3FA110;
+  --acao-hover: #4bb51b;
+  --acao-texto: #08140a;
+  --foco: #7bd44f;
+
+  --falha: #ff2e78; --falha-txt: #ff86ae; --falha-bg: #3a1220;
+  --atraso: #ff7a26; --atraso-txt: #ffab73; --atraso-bg: #3a2010;
+  --rodando: #46D7FF; --rodando-txt: #8fe6ff; --rodando-bg: #0f2c36;
+  --ressalva: #FFCD00; --ressalva-txt: #ffdc52; --ressalva-bg: #332a07;
+  --ok: #3FA110; --ok-txt: #86d65e; --ok-bg: #18301a;
+  --pausado: #7d887e; --pausado-txt: #aab4ab; --pausado-bg: #222a23;
+  --trilha-ok: #3c7f27;
+
+  --log-bg: #090d0a;
+
+  --titulo-estilo: normal;
+  --raio-box: 8px;
+  --raio-peq: 6px;
+  --traco: 1.5;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.3);
+  --sombra-gaveta: -16px 0 48px rgb(0 0 0 / 0.55);
+
+  --topo-bg: #0b0f0c;
+  --topo-linha: #222b23;
+  --nav-txt: #aab7ab;
+  --nav-ativo: #e8efe6;
+  --nav-ativo-linha: #3FA110;
+  --fundo-gaveta: #121813;
+}
+
+.logo-slot--negativo { color: #ffffff; }
+.botao--sec { background: var(--sup-2); }
+.busca input { background: var(--sup); }
+.campo-select select { background-color: var(--sup); }
+.demo-aviso { background: #121813; }
+.gaveta__fundo { background: rgb(0 0 0 / 0.55); }
+
+/* Quem precisa de ação acende; quem está em dia fica quieto. */
+.tile--falha .tile__in { background: #c8004a !important; border-color: #c8004a !important; }
+.tile--atrasado .tile__in { background: var(--st) !important; border-color: var(--st) !important; }
+.tile--falha .tile__estado, .tile--falha .tile__nome, .tile--falha .tile__info, .tile--falha .tile__estado .ico { color: #ffffff; }
+.tile--atrasado .tile__estado, .tile--atrasado .tile__nome, .tile--atrasado .tile__info, .tile--atrasado .tile__estado .ico { color: #1a0d00; }
+.tile--ok .tile__estado { color: var(--texto-3); }
+.tile--ok .tile__estado .ico { color: var(--ok); }
+.contador--falha:not(.contador--zero) { background: var(--falha-bg); border-color: color-mix(in srgb, var(--falha) 50%, transparent); }
+.contador--atrasado:not(.contador--zero) { background: var(--atraso-bg); border-color: color-mix(in srgb, var(--atraso) 45%, transparent); }
+.contador__num { color: var(--texto); }
+.mural { columns: 4 240px; }
+
+.tv { --tv-fundo: #0b0f0c; }
+.tv .aviso__abrir { background: var(--sup); }

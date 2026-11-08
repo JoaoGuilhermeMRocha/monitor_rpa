@@ -1,0 +1,44 @@
+/* V3 · Equilíbrio: ferramenta de trabalho com a marca presente sem dominar. Fundo neutro claro,
+   verde no topo e nas ações, Nunito no texto e Exo 2 só em títulos e números. Estados com cores de interface. */
+:root {
+  --fundo: #f1f4ee;
+  --sup: #ffffff;
+  --sup-2: #f3f5f1;
+  --sup-3: #e4e8e0;
+  --texto: #1a1f1b;
+  --texto-2: #4d564f;
+  --texto-3: #69736b;
+  --linha: #dfe3db;
+  --linha-forte: #c5ccc1;
+  --marca-bg: #e9f4e1;
+  --acao: #146E37;
+
+  --falha: #d4183d; --falha-txt: #a6122f; --falha-bg: #fdecef;
+  --atraso: #e8650a; --atraso-txt: #9c4206; --atraso-bg: #fff1e6;
+  --rodando: #1f7ae0; --rodando-txt: #165db0; --rodando-bg: #eaf3fe;
+  --ressalva: #d9a400; --ressalva-txt: #735700; --ressalva-bg: #fff7da;
+  --ok: #3FA110; --ok-txt: #2c7a0b; --ok-bg: #ecf6e5;
+  --pausado: #7a827b; --pausado-txt: #4f5750; --pausado-bg: #eef0ec;
+  --trilha-ok: #a3d38a;
+
+  --titulo-estilo: normal;
+  --raio-box: 10px;
+  --raio-peq: 7px;
+  --traco: 1.5;
+
+  --topo-bg: #ffffff;
+  --nav-ativo: #146E37;
+  --nav-ativo-linha: #3FA110;
+}
+
+.topo { border-top: 4px solid #3FA110; }
+.logo-slot--positivo { color: #146E37; }
+.contador { box-shadow: var(--sombra); border-color: transparent; }
+.contador--falha:not(.contador--zero), .contador--atrasado:not(.contador--zero) { background: var(--st-bg); }
+.faixa { margin-bottom: 18px; }
+.mestre { box-shadow: var(--sombra); border-color: transparent; }
+.detalhe__titulo { font-size: 27px; }
+.segmentado button[aria-pressed="true"] { color: #146E37; }
+
+.tv { --tv-fundo: #f1f4ee; }
+.tv__cab { border-top: 0.35vw solid #3FA110; margin-top: -1.6vw; padding-top: 1.2vw; }

@@ -1,0 +1,150 @@
+/* V6 · Fila e execução: a organização do rascunho do time, com dois temas.
+   Claro = visual da V1 (manual 100%). Escuro = visual da V4 (sala de operação).
+   O botão de sol/lua no topo troca; a escolha fica salva no navegador. */
+
+/* ---------- Claro (V1) ---------- */
+:root[data-tema="claro"] {
+  color-scheme: light;
+  --fundo: #ffffff;
+  --sup: #ffffff;
+  --sup-2: #f2f7ec;
+  --sup-3: #e3eed8;
+  --texto: #18201a;
+  --texto-2: #4a5a4c;
+  --texto-3: #5A645A;
+  --linha: #dbe6d0;
+  --linha-forte: #b9cca9;
+  --marca-bg: #e8f3df;
+  --acao: #146E37;
+  --acao-hover: #0f5a2c;
+  --fila-bg: #f2f7ec;
+
+  --falha: #E60050; --falha-txt: #730028; --falha-bg: #fde6ee;
+  --atraso: #FF6400; --atraso-txt: #5A3C1E; --atraso-bg: #ffeee2;
+  --rodando: #1fb8e0; --rodando-txt: #0a6280; --rodando-bg: #e3f8fe;
+  --ressalva: #FFCD00; --ressalva-txt: #5A3C1E; --ressalva-bg: #fff7d0;
+  --ok: #3FA110; --ok-txt: #146E37; --ok-bg: #e8f3df;
+  --pausado: #5A645A; --pausado-txt: #5A645A; --pausado-bg: #edf0eb;
+  --trilha-ok: #8cc66d;
+
+  --titulo-estilo: italic;
+  --fonte-num: 'Exo 2', 'Nunito', Arial, sans-serif;
+  --raio-box: 0 14px 14px 14px;
+  --raio-peq: 0 8px 8px 8px;
+  --traco: 1.15;
+
+  --topo-bg: #ffffff;
+  --topo-linha: #dbe6d0;
+  --nav-ativo: #146E37;
+  --nav-ativo-linha: #3FA110;
+}
+[data-tema="claro"] .logo-slot--tema { color: #146E37; }
+[data-tema="claro"] .topo__produto { color: #146E37; }
+[data-tema="claro"] h1, [data-tema="claro"] h2 { color: #146E37; }
+[data-tema="claro"] .segmentado { border-radius: 0 8px 8px 8px; }
+[data-tema="claro"] .segmentado button { border-radius: 0 6px 6px 6px; }
+[data-tema="claro"] .segmentado button[aria-pressed="true"] { background: #146E37; color: #fff; box-shadow: none; }
+[data-tema="claro"] .contador__num, [data-tema="claro"] .faixa__hoje-num, [data-tema="claro"] .resumo dd, [data-tema="claro"] .tv__relogio { font-style: italic; }
+[data-tema="claro"] .barras__val { background: linear-gradient(90deg, #146E37, #3FA110); }
+[data-tema="claro"] .log { border-radius: 0 14px 14px 14px; }
+[data-tema="claro"] .demo-aviso { background: #f2f7ec; }
+
+/* A faixa do topo da tela é o box verde da marca: "Fila" no verde-escuro, contadores no degradê. */
+[data-tema="claro"] .op__fila-cab { background: #146E37; border-color: #146E37; }
+[data-tema="claro"] .op__faixa { background: linear-gradient(90deg, #146E37 0%, #3FA110 100%); border-color: transparent; }
+[data-tema="claro"] .fila__h { color: #ffffff; }
+[data-tema="claro"] .fila__conta { color: #d7e6c8; }
+[data-tema="claro"] .op__fila-cab .botao-ico, [data-tema="claro"] .op__fila-cab .botao--sec { background: rgb(255 255 255 / 0.12); border-color: rgb(255 255 255 / 0.45); color: #ffffff; }
+[data-tema="claro"] .op__fila-cab .botao-ico:hover, [data-tema="claro"] .op__fila-cab .botao--sec:hover { background: rgb(255 255 255 / 0.22); }
+[data-tema="claro"] .op__fila-cab .botao-ico[aria-expanded="true"], [data-tema="claro"] .op__fila-cab .botao-ico--ativo { background: #ffffff; color: #146E37; }
+[data-tema="claro"] .op__fila-cab .botao-ico__n { background: #FFCD00; color: #18201a; }
+[data-tema="claro"] .op__fila-cab .segmentado { background: rgb(255 255 255 / 0.12); border-color: rgb(255 255 255 / 0.3); }
+[data-tema="claro"] .op__fila-cab .segmentado button { color: #ffffff; }
+[data-tema="claro"] .op__fila-cab .segmentado button[aria-pressed="true"] { background: #ffffff; color: #146E37; }
+[data-tema="claro"] .op__faixa .contador { border-color: transparent; }
+[data-tema="claro"] .op__faixa .faixa__hoje-num { color: #ffffff; }
+[data-tema="claro"] .op__faixa .faixa__hoje-rot { color: #ffffff; }
+[data-tema="claro"] .op__faixa .faixa__hoje { background: #146E37; border-radius: var(--raio-box); padding: 6px 12px; }
+[data-tema="claro"] button.contador[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--st); }
+[data-tema="claro"] .op-card--ok .op-card__in::before { background: #3FA110; }
+
+/* ---------- Escuro (V4) ---------- */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --fundo: #0e130f;
+  --sup: #161d17;
+  --sup-2: #1d261f;
+  --sup-3: #283229;
+  --texto: #e8efe6;
+  --texto-2: #aab7ab;
+  --texto-3: #85928a;
+  --linha: #263027;
+  --linha-forte: #3a473c;
+  --marca: #3FA110;
+  --marca-bg: #1c3317;
+  --acao: #3FA110;
+  --acao-hover: #4bb51b;
+  --acao-texto: #08140a;
+  --foco: #7bd44f;
+  --fila-bg: #121813;
+
+  --falha: #ff2e78; --falha-txt: #ff86ae; --falha-bg: #3a1220;
+  --atraso: #ff7a26; --atraso-txt: #ffab73; --atraso-bg: #3a2010;
+  --rodando: #46D7FF; --rodando-txt: #8fe6ff; --rodando-bg: #0f2c36;
+  --ressalva: #FFCD00; --ressalva-txt: #ffdc52; --ressalva-bg: #332a07;
+  --ok: #3FA110; --ok-txt: #86d65e; --ok-bg: #18301a;
+  --pausado: #7d887e; --pausado-txt: #aab4ab; --pausado-bg: #222a23;
+  --trilha-ok: #3c7f27;
+  --log-bg: #090d0a;
+
+  --titulo-estilo: normal;
+  --raio-box: 0 10px 10px 10px;
+  --raio-peq: 6px;
+  --traco: 1.5;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.3);
+  --sombra-gaveta: -16px 0 48px rgb(0 0 0 / 0.55);
+
+  --topo-bg: #0b0f0c;
+  --topo-linha: #222b23;
+  --nav-txt: #aab7ab;
+  --nav-ativo: #e8efe6;
+  --nav-ativo-linha: #3FA110;
+  --fundo-gaveta: #121813;
+}
+[data-tema="escuro"] .logo-slot--tema { color: #ffffff; }
+[data-tema="escuro"] .botao--sec { background: var(--sup-2); }
+[data-tema="escuro"] .busca input { background: var(--sup); }
+[data-tema="escuro"] .campo-select select { background-color: var(--sup); }
+[data-tema="escuro"] .demo-aviso { background: #121813; }
+[data-tema="escuro"] .gaveta__fundo { background: rgb(0 0 0 / 0.55); }
+[data-tema="escuro"] .contador--falha:not(.contador--zero) { background: var(--falha-bg); border-color: color-mix(in srgb, var(--falha) 50%, transparent); }
+[data-tema="escuro"] .contador--atrasado:not(.contador--zero) { background: var(--atraso-bg); border-color: color-mix(in srgb, var(--atraso) 45%, transparent); }
+[data-tema="escuro"] .contador__num { color: var(--texto); }
+[data-tema="escuro"] .tv { --tv-fundo: #0b0f0c; }
+
+/* Quem precisa de ação acende; quem está em dia fica quieto. As cores do cartão mudam só ali dentro. */
+[data-tema="escuro"] .op-card--falha:not(.op-card--reconhecido) .op-card__in {
+  --texto: #ffffff; --texto-2: #ffe1eb; --texto-3: #ffd0df; --st: #ffffff; --st-txt: #ffffff; --linha: rgb(255 255 255 / 0.3);
+  background: #c8004a; border-color: #c8004a;
+}
+[data-tema="escuro"] .op-card--atrasado .op-card__in {
+  --texto: #1a0d00; --texto-2: #3d2208; --texto-3: #4a2a0c; --st: #1a0d00; --st-txt: #1a0d00; --linha: rgb(0 0 0 / 0.22);
+  background: #ff7a26; border-color: #ff7a26;
+}
+[data-tema="escuro"] .op-card--falha:not(.op-card--reconhecido) .op-card__in::before,
+[data-tema="escuro"] .op-card--atrasado .op-card__in::before { background: transparent; }
+[data-tema="escuro"] .op-card--falha:not(.op-card--reconhecido) .op-card__c + .op-card__c,
+[data-tema="escuro"] .op-card--atrasado .op-card__c + .op-card__c { border-color: var(--linha) !important; }
+[data-tema="escuro"] .op-card--ok .op-card__rot { color: var(--texto-3); }
+
+@media (max-width: 899px) {
+  [data-tema="claro"] .op__faixa { padding: 10px; border-radius: 0 16px 16px 16px; }
+  [data-tema="claro"] .op__fila-cab { background: none; }
+  [data-tema="claro"] .fila__h { color: #146E37; }
+  [data-tema="claro"] .fila__conta { color: var(--texto-3); }
+  [data-tema="claro"] .op__fila-cab .botao-ico, [data-tema="claro"] .op__fila-cab .botao--sec { background: var(--sup); border-color: var(--linha-forte); color: var(--texto-2); }
+  [data-tema="claro"] .op__fila-cab .botao-ico[aria-expanded="true"], [data-tema="claro"] .op__fila-cab .botao-ico--ativo { background: var(--marca-bg); color: #146E37; border-color: #146E37; }
+  [data-tema="claro"] .op__fila-cab .segmentado { background: var(--sup-2); border-color: var(--linha); }
+  [data-tema="claro"] .op__fila-cab .segmentado button { color: var(--texto-2); }
+  [data-tema="claro"] .op__fila-cab .segmentado button[aria-pressed="true"] { background: #146E37; color: #fff; }
+}

@@ -1,0 +1,65 @@
+/* V5 · Limite mínimo: o mínimo que o manual exige. Tipografia de sistema (Calibri, ou Arial sem Office),
+   Verde Sicredi no logo, nas ações e no estado em dia, e o resto neutro. Tabela densa, sem agrupamento. */
+:root {
+  --fundo: #f4f4f3;
+  --sup: #ffffff;
+  --sup-2: #f3f3f2;
+  --sup-3: #e6e6e4;
+  --texto: #1d1f1e;
+  --texto-2: #505351;
+  --texto-3: #6c6f6d;
+  --linha: #e1e2e0;
+  --linha-forte: #c6c8c5;
+  --marca-bg: #edf6e7;
+  --acao: #146E37;
+
+  --falha: #d0263a; --falha-txt: #a81d2e; --falha-bg: #fcecee;
+  --atraso: #e06a00; --atraso-txt: #964600; --atraso-bg: #fff2e5;
+  --rodando: #2468c9; --rodando-txt: #1c529f; --rodando-bg: #ebf2fc;
+  --ressalva: #c79200; --ressalva-txt: #6d5100; --ressalva-bg: #fdf6dc;
+  --ok: #3FA110; --ok-txt: #2c740c; --ok-bg: #edf6e7;
+  --pausado: #858886; --pausado-txt: #555856; --pausado-bg: #eeeeed;
+  --trilha-ok: #b6d9a3;
+
+  --fonte-titulo: Calibri, Carlito, Arial, sans-serif;
+  --fonte-texto: Calibri, Carlito, Arial, sans-serif;
+  --fonte-num: Calibri, Carlito, Arial, sans-serif;
+  --titulo-estilo: normal;
+  --titulo-peso: 700;
+  --raio-box: 4px;
+  --raio-peq: 4px;
+  --traco: 1.6;
+  --topo-h: 52px;
+
+  --nav-ativo: #1d1f1e;
+  --nav-ativo-linha: #3FA110;
+}
+
+body { font-size: 14px; }
+.logo-slot--positivo { color: #146E37; }
+.topo__produto { font-size: 16px; }
+.nav__item { font-size: 14px; }
+.faixa { gap: 0; margin-bottom: 18px; background: var(--sup); border: 1px solid var(--linha); border-radius: var(--raio-box); }
+.contador { border: 0; border-radius: 0; padding: 10px 14px; }
+.contador + .contador { border-left: 1px solid var(--linha); }
+.contador__num { font-size: 26px; }
+button.contador[aria-pressed="true"] { box-shadow: inset 0 -3px 0 var(--st); }
+.faixa__hoje { border-left: 1px solid var(--linha); border-radius: 0; }
+.tabela { font-size: 13.5px; }
+.tabela th, .tabela td { padding: 6px 10px; }
+.chip { font-size: 12px; padding: 1px 7px 1px 4px; }
+.cartao__abrir, .aviso__abrir { padding: 10px 12px; }
+.geral { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; }
+.secao__cab h2 { font-size: 17px; }
+.detalhe__titulo { font-size: 22px; }
+
+.tv { --tv-fundo: #f4f4f3; }
+
+@media (max-width: 1279px) {
+  .contador:nth-child(4) { border-left: 0; }
+  .contador:nth-child(n + 4) { border-top: 1px solid var(--linha); }
+  .faixa__hoje { border-left: 0; border-top: 1px solid var(--linha); padding: 8px 14px; }
+}
+@media (max-width: 1099px) {
+  .geral { grid-template-columns: minmax(0, 1fr); }
+}

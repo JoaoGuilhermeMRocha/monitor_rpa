@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor de Automações · Versões</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="compartilhado/base.css">
+<style>
+  body { background: #ffffff; }
+  .comp { max-width: 1200px; margin: 0 auto; padding: 40px 24px 64px; }
+  .comp__cab { max-width: 760px; margin-bottom: 36px; }
+  .comp__cab h1 { font-size: 34px; font-style: italic; color: #146E37; margin-bottom: 12px; }
+  .comp__cab p { font-size: 16.5px; color: var(--texto-2); }
+  .comp__cab p + p { margin-top: 8px; }
+  .escala { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 28px 0 8px; }
+  .escala span { height: 8px; background: linear-gradient(90deg, #146E37, #3FA110); }
+  .escala span:nth-child(2) { opacity: 0.8; } .escala span:nth-child(3) { opacity: 0.6; } .escala span:nth-child(4) { opacity: 0.4; } .escala span:nth-child(5) { opacity: 0.22; }
+  .escala-rot { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--texto-2); }
+  .versoes { display: grid; gap: 40px; margin-top: 40px; }
+  .versao { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 28px; align-items: start; padding-top: 28px; border-top: 1px solid var(--linha); }
+  .versao__fotos { position: relative; }
+  .versao__fotos img { display: block; width: 100%; height: auto; border: 1px solid var(--linha); border-radius: 0 14px 14px 14px; }
+  .versao__fotos .cel { position: absolute; right: -10px; bottom: -18px; width: 24%; border-radius: 10px; box-shadow: 0 8px 28px rgb(10 30 15 / 0.22); }
+  .versao h2 { font-size: 24px; font-style: italic; color: #146E37; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .versao h2 small { font: 700 13px var(--fonte-texto); font-style: normal; color: var(--texto-2); }
+  .medidor { display: flex; gap: 3px; margin: 10px 0 14px; }
+  .medidor i { width: 26px; height: 6px; background: var(--sup-3); }
+  .medidor i.on { background: #3FA110; }
+  .versao p { color: var(--texto-2); }
+  .versao dl { margin: 14px 0 18px; display: grid; gap: 10px; }
+  .versao dt { font-size: 12.5px; font-weight: 800; color: var(--texto); }
+  .versao dd { font-size: 14.5px; color: var(--texto-2); }
+  .versao__acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .versao--nova { padding: 28px; border: 2px solid #3FA110; border-radius: 0 20px 20px 20px; background: #f7fbf3; }
+  .igual { margin-top: 64px; padding: 24px 28px; background: #f2f7ec; border-radius: 0 16px 16px 16px; }
+  .igual h2 { font-size: 20px; font-style: italic; color: #146E37; margin-bottom: 10px; }
+  .igual ul { list-style: disc; padding-left: 20px; display: grid; gap: 4px; color: var(--texto-2); }
+  .igual p { margin-top: 12px; color: var(--texto-2); font-size: 14px; }
+  @media (max-width: 899px) {
+    .versao { grid-template-columns: minmax(0, 1fr); }
+    .versao__fotos .cel { right: 6px; }
+    .comp__cab h1 { font-size: 27px; }
+  }
+</style>
+</head>
+<body>
+<main class="comp">
+  <header class="comp__cab">
+    <h1>Monitor de Automações: versões para o time escolher</h1>
+    <p>A V6 é a mais nova: junta a organização desenhada pelo time com o visual da V1 (claro) e da V4 (escuro). As outras cinco ficam abaixo para comparação.</p>
+    <p>Todas têm as mesmas funções e os mesmos dados de demonstração (44 automações fictícias). O que muda é quanto da marca Sicredi aparece e como a tela se organiza.</p>
+    <p>Abra cada uma, clique numa automação com falha, veja o log, a tela de alertas, os indicadores e o modo TV. Dá para escolher uma versão inteira ou juntar partes, tipo a organização de uma com o visual de outra.</p>
+    <div class="escala" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    <div class="escala-rot"><span>Manual 100%</span><span>Limite mínimo do manual</span></div>
+  </header>
+
+  <div class="versoes">
+    <article class="versao versao--nova">
+      <div class="versao__fotos"><img src="capturas/v6-desktop.png" alt="V6 no computador, tema claro: topo em células, fila de execuções à esquerda e, à direita, os contadores e os cartões do que está acontecendo agora" loading="lazy"><img class="cel" src="capturas/v6-celular.png" alt="V6 no celular, tema escuro" loading="lazy"></div>
+      <div>
+        <h2>V6 · Fila e execução <small>do rascunho do time · tema claro e escuro</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 5 de 5 no tema claro"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <p>A organização desenhada pelo time, com o visual da V1 no tema claro e o da V4 no escuro. O botão de sol/lua no topo troca; cada pessoa fica com a sua escolha.</p>
+        <dl>
+          <div><dt>Organização</dt><dd>Topo em células (logo, nome, visões, busca, situação). Fila à esquerda, com o que aguarda robô e as próximas da agenda, por prioridade ou horário. À direita, os contadores e um cartão por automação: nome e número, estado e etapa, início e duração, VM.</dd></div>
+          <div><dt>Do manual</dt><dd>Claro: box verde em degradê, Exo 2 itálico e o canto reto como bandeira de estado. Escuro: o mesmo layout, e falhas e atrasos “acendem”.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>Prioridade, número da execução e etapa precisam vir do Orchestrator e dos logs Python. Ainda não sabemos se todos os robôs informam a etapa.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v6-fila-e-execucao/">Abrir V6</a><a class="botao botao--sec" href="v6-fila-e-execucao/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+
+    <article class="versao">
+      <div class="versao__fotos"><img src="capturas/v1-desktop.png" alt="V1 no computador: faixa verde com os contadores, lista de atenção à esquerda e cartões das automações por área" loading="lazy"><img class="cel" src="capturas/v1-celular.png" alt="V1 no celular" loading="lazy"></div>
+      <div>
+        <h2>V1 · Manual 100% <small>abas no topo, cartões</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 5 de 5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <p>Fundo branco, Verde Sicredi como protagonista, Exo 2 itálico nos títulos e o box da marca com um canto reto. Esse canto reto vira a bandeira de estado de cada automação.</p>
+        <dl>
+          <div><dt>Do manual</dt><dd>Degradê verde-escuro → Verde Sicredi, box com canto reto, cores de estado só da paleta oficial (magenta, laranja, azul, amarelo, verdes), ícones de traço fino.</dd></div>
+          <div><dt>Organização</dt><dd>Faixa de situação no box verde, lista de atenção à esquerda e cartões agrupados por área.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>É a mais “de comunicação”. Com 100 automações, a lista de cartões fica longa.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v1-manual-100/">Abrir V1</a><a class="botao botao--sec" href="v1-manual-100/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+
+    <article class="versao">
+      <div class="versao__fotos"><img src="capturas/v2-desktop.png" alt="V2 no computador: menu lateral verde-escuro, atenção em grade e tabela agrupada por área" loading="lazy"><img class="cel" src="capturas/v2-celular.png" alt="V2 no celular" loading="lazy"></div>
+      <div>
+        <h2>V2 · Manual digital <small>menu lateral, tabela</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 4 de 5"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        <p>Segue o manual na versão que ele mesmo prevê para produto digital: box simplificado de cantos retos, sem o ângulo de 82°, e itálico só no título.</p>
+        <dl>
+          <div><dt>Do manual</dt><dd>Verde-escuro no menu, box de cantos retos, paleta oficial nos estados, Exo 2 e Nunito.</dd></div>
+          <div><dt>Organização</dt><dd>Menu lateral fixo, alertas em grade no topo e tabela com todas as automações, agrupada por área, ordenável por coluna.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>O menu lateral come 240px da largura em telas de 1280px.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v2-manual-digital/">Abrir V2</a><a class="botao botao--sec" href="v2-manual-digital/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+
+    <article class="versao">
+      <div class="versao__fotos"><img src="capturas/v3-desktop.png" alt="V3 no computador: lista de automações à esquerda e o detalhe da selecionada sempre aberto à direita" loading="lazy"><img class="cel" src="capturas/v3-celular.png" alt="V3 no celular" loading="lazy"></div>
+      <div>
+        <h2>V3 · Equilíbrio <small>lista + detalhe sempre aberto</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 3 de 5"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+        <p>Ferramenta de trabalho com a marca presente sem dominar: fundo neutro claro, verde no topo e nas ações, Exo 2 só em títulos e números.</p>
+        <dl>
+          <div><dt>Do manual</dt><dd>Verde Sicredi, Exo 2 e Nunito. Os estados usam cores de interface (vermelho, laranja, azul), que o manual permite em produto digital.</dd></div>
+          <div><dt>Organização</dt><dd>Lista à esquerda (o que precisa de atenção vem primeiro) e o detalhe da automação sempre aberto à direita, com gráfico, execuções e log, sem abrir e fechar painel.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>Feita para quem investiga falhas o dia todo. De longe, na TV, rende menos que o modo TV próprio.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v3-equilibrio/">Abrir V3</a><a class="botao botao--sec" href="v3-equilibrio/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+
+    <article class="versao">
+      <div class="versao__fotos"><img src="capturas/v4-desktop.png" alt="V4 no computador: tela escura com o mural de automações por área, falhas acesas em magenta" loading="lazy"><img class="cel" src="capturas/v4-celular.png" alt="V4 no celular" loading="lazy"></div>
+      <div>
+        <h2>V4 · Sala de operação <small>escuro, mural</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 2 de 5"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+        <p>Escura, pensada para a TV da sala e para quem passa o dia olhando. Quem precisa de ação acende; quem está em dia fica quieto.</p>
+        <dl>
+          <div><dt>Do manual</dt><dd>Verde Sicredi para o que está em dia, magenta e laranja da paleta nas falhas e logo em versão negativa. O manual pede fundo branco como principal, então essa é a que mais se afasta.</dd></div>
+          <div><dt>Organização</dt><dd>Mural com todas as automações em blocos por área, com a lista de atenção ao lado.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>Precisa do aval do time de marca por causa do fundo escuro.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v4-sala-de-operacao/">Abrir V4</a><a class="botao botao--sec" href="v4-sala-de-operacao/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+
+    <article class="versao">
+      <div class="versao__fotos"><img src="capturas/v5-desktop.png" alt="V5 no computador: visual neutro, tabela densa ordenada por gravidade" loading="lazy"><img class="cel" src="capturas/v5-celular.png" alt="V5 no celular" loading="lazy"></div>
+      <div>
+        <h2>V5 · Limite mínimo <small>tabela densa, estilo console</small></h2>
+        <div class="medidor" aria-label="Aderência à marca: 1 de 5"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+        <p>O mínimo que o manual exige: fonte de sistema (Calibri, ou Arial onde não há Office), Verde Sicredi no logo, nas ações e no “em dia”, e o resto neutro.</p>
+        <dl>
+          <div><dt>Do manual</dt><dd>Só a tipografia de sistema permitida, o verde obrigatório e o logo.</dd></div>
+          <div><dt>Organização</dt><dd>Faixa compacta, alertas no topo e uma tabela única com as 44 automações, ordenada por gravidade e sem agrupamento.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>É a que mais cabe na tela, e também a que menos parece Sicredi.</dd></div>
+        </dl>
+        <div class="versao__acoes"><a class="botao botao--pri" href="v5-limite-minimo/">Abrir V5</a><a class="botao botao--sec" href="v5-limite-minimo/#/tv">Modo TV</a></div>
+      </div>
+    </article>
+  </div>
+
+  <section class="igual">
+    <h2>O que é igual em todas</h2>
+    <ul>
+      <li>Faixa de situação com falhas, atrasadas, rodando, com ressalva, em dia e pausadas. Clicar num contador filtra a lista.</li>
+      <li>“Precisa de atenção” sempre primeiro: falhas, atrasos (sem sinal no log nem no banco depois do horário), execuções longas demais e itens mandados para tratamento manual.</li>
+      <li>Detalhe da automação com agenda, responsável, duração das últimas execuções, histórico e o log de cada execução, filtrável por nível e com botão de copiar.</li>
+      <li>Botão “Reconhecer” no alerta, com nota para o time saber quem está cuidando.</li>
+      <li>Indicadores de hoje, 7 e 30 dias: execuções, taxa sem falha, horas poupadas, áreas e automações que mais falham, e a comparação UiPath × Python.</li>
+      <li>Modo TV em tela cheia, sem rolagem, que se ajusta para caber tudo. Busca pela tecla “/” e Esc para fechar.</li>
+      <li>Estado sempre com ícone e texto, não só cor, para quem tem daltonismo. Funciona no celular.</li>
+    </ul>
+    <p>Os nomes de processos, responsáveis e números são fictícios. O espaço tracejado no topo é onde entra o arquivo oficial do logo, que o manual proíbe redesenhar.</p>
+  </section>
+</main>
+</body>
+</html>
