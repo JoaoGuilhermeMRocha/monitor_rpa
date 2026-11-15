@@ -57,15 +57,15 @@
 
   <div class="versoes">
     <article class="versao versao--nova">
-      <div class="versao__fotos"><img src="capturas/v6-desktop.png" alt="V6 no computador, tema claro: topo em células, fila de execuções à esquerda e, à direita, os contadores e os cartões do que está acontecendo agora" loading="lazy"><img class="cel" src="capturas/v6-celular.png" alt="V6 no celular, tema escuro" loading="lazy"></div>
+      <div class="versao__fotos"><img src="capturas/v6-desktop.png" alt="V6 no computador, tema claro: fila à esquerda, as 6 VMs no centro, a coluna de ação manual com o log à direita e as últimas finalizadas no pé" loading="lazy"><img class="cel" src="capturas/v6-celular.png" alt="V6 no celular, tema claro, na aba Agora" loading="lazy"></div>
       <div>
         <h2>V6 · Fila e execução <small>do rascunho do time · tema claro e escuro</small></h2>
         <div class="medidor" aria-label="Aderência à marca: 5 de 5 no tema claro"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
         <p>A organização desenhada pelo time, com o visual da V1 no tema claro e o da V4 no escuro. O botão de sol/lua no topo troca; cada pessoa fica com a sua escolha.</p>
         <dl>
-          <div><dt>Organização</dt><dd>Topo em células (logo, nome, visões, busca, situação). Fila à esquerda, com o que aguarda robô e as próximas da agenda, por prioridade ou horário. À direita, os contadores e um cartão por automação: nome e número, estado e etapa, início e duração, VM.</dd></div>
+          <div><dt>Organização</dt><dd>Três colunas: Fila (com ações em quem aguarda robô: assumir, ignorar, atender agora, agendar, comentar), Agora (as 6 VMs fixas, cada uma com o que roda nela) e Necessária ação manual (com o trecho do log). As últimas finalizadas ficam num rodapé discreto. Abas: Painel, Automações (lista e detalhe, execuções que abrem) e Indicadores (com resumos executivos).</dd></div>
           <div><dt>Do manual</dt><dd>Claro: box verde em degradê, Exo 2 itálico e o canto reto como bandeira de estado. Escuro: o mesmo layout, e falhas e atrasos “acendem”.</dd></div>
-          <div><dt>Ponto de atenção</dt><dd>Prioridade, número da execução e etapa precisam vir do Orchestrator e dos logs Python. Ainda não sabemos se todos os robôs informam a etapa.</dd></div>
+          <div><dt>Ponto de atenção</dt><dd>Prioridade, número da execução e etapa precisam vir do Orchestrator e dos logs Python. Ainda não sabemos se todos os robôs informam a etapa. As ações na fila mexem no Orchestrator e precisam de permissão e auditoria.</dd></div>
         </dl>
         <div class="versao__acoes"><a class="botao botao--pri" href="v6-fila-e-execucao/">Abrir V6</a><a class="botao botao--sec" href="v6-fila-e-execucao/#/tv">Modo TV</a></div>
       </div>

@@ -9,9 +9,9 @@ Painel para acompanhar as automações do Sicredi, tanto os robôs UiPath quanto
 - alertas e indicadores (taxa de sucesso, tempo médio, itens processados, horas poupadas);
 - um modo TV para a tela da sala do time.
 
-O monitor só **lê**: logs e banco. Ele não liga, para nem altera nenhum robô.
+O monitor observa logs e banco. A única coisa em que ele age é a fila, e só quando alguém escolhe uma ação (assumir, ignorar, atender agora, agendar, comentar).
 
-> **Fase atual: protótipo de layout.** As telas funcionam, mas com **dados fictícios** (44 automações e 30 dias de histórico, gerados no navegador). Ainda não há servidor nem leitura dos dados reais.
+> **Fase atual: telas prontas para validar, com dados de demonstração.** Funcionam com **dados fictícios** (44 automações e 30 dias de histórico, gerados no navegador). Ainda não há servidor nem leitura dos dados reais.
 
 ## Dependências
 
@@ -27,46 +27,43 @@ cd web
 python3 -m http.server 8001
 ```
 
-Depois abra no navegador:
-
-- `http://localhost:8001/prototipos/`: página de comparação de todas as versões
-- `http://localhost:8001/prototipos/v6-fila-e-execucao/`: versão atual
-- Acrescente `#/tv` no fim do endereço de qualquer versão para abrir o modo TV.
+Depois abra `http://localhost:8001/`. Acrescente `#/tv` no fim do endereço para o modo TV.
 
 Para outras pessoas da rede acessarem, troque `localhost` pelo nome ou IP da máquina. Abrir o `index.html` direto do disco, sem servidor, pode impedir o carregamento das fontes.
+
+## O que tem na tela
+
+- **Painel**: Fila (com ações em quem aguarda robô) | Agora (as 6 VMs e o que roda em cada uma) | Necessária ação manual (com o trecho do log). No pé, as últimas finalizadas.
+- **Automações**: lista e detalhe, com o histórico de execuções; cada execução abre com todos os dados e o log.
+- **Indicadores**: gráficos e resumos executivos (operação do dia, semana para a gestão, por área, conferência previsto × realizado, falhas e tratativas), para copiar ou imprimir.
+- **Modo TV**: o painel em tela cheia, para ler de longe.
+- Tema claro (manual da marca) e escuro (sala de operação), trocados no botão de sol/lua.
 
 ## Estrutura
 
 ```
 web/
-  assets/fontes/               fontes da marca, servidas localmente
-  prototipos/
-    index.html                 comparação das versões, com prints
-    compartilhado/
-      dados-demo.js            dados fictícios (o formato deles é o contrato da futura API)
-      monitor.js               telas, rotas e interações
-      base.css                 estrutura, estados e responsivo
-    v1-… a v6-…/               cada versão: index.html (configuração) + tema.css (visual)
-    capturas/                  prints usados na página de comparação
+  index.html          a página do monitor
+  css/base.css        estrutura, estados e responsivo
+  css/tema.css        temas claro e escuro
+  js/monitor.js       telas, rotas e interações
+  js/dados-demo.js    dados fictícios (o formato deles é o contrato da futura API)
+                      e a simulação do que o servidor vai fazer (VMs andando, ações na fila)
+  assets/fontes/      fontes da marca, servidas localmente
+arquivo/
+  prototipos-de-layout/   as 6 versões de layout que levaram ao desenho atual (só histórico)
 ```
 
-## Como chegamos nas 6 versões
+## Como chegamos aqui
 
-1. **Marca primeiro.** O ponto de partida foi o manual da marca Sicredi (marca.sicredi.com.br): Verde Sicredi e verde-escuro, Exo 2 e Nunito, o box com um canto reto e as cores de apoio só como coadjuvantes.
-2. **Cinco versões numa escala de aderência ao manual.** Todas têm as mesmas funções e os mesmos dados. Muda o quanto da marca aparece e como a tela se organiza:
-   - **V1 · Manual 100%**: fundo branco, box verde em degradê, cartões por área.
-   - **V2 · Manual digital**: menu lateral verde-escuro, cantos retos, tabela.
-   - **V3 · Equilíbrio**: lista à esquerda e detalhe sempre aberto à direita.
-   - **V4 · Sala de operação**: tema escuro em mural, em que o que tem problema "acende".
-   - **V5 · Limite mínimo**: Calibri/Arial, tabela densa, marca só no obrigatório.
-3. **Retorno do time.** O time gostou do visual da V1 e da V4, mas não da distribuição das informações, e mandou um rascunho próprio: fila de execuções à esquerda, contadores no topo e, à direita, um cartão por execução (automação e número, etapa, início e duração, máquina).
-4. **V6 · Fila e execução.** É o rascunho do time implementado. Usa o visual da V1 no tema claro e o da V4 no tema escuro, trocados por um botão no topo; cada pessoa fica com a sua escolha. É a versão candidata. As outras ficam para comparação até a escolha final.
+Foram feitas 6 versões de layout, da que segue o manual da marca à risca até a que usa só o mínimo. O time gostou do visual da V1 (claro) e da V4 (escuro), mas não da organização, e mandou um rascunho próprio, que virou a V6. Em 15/11/2026 a V6 foi escolhida como base e virou o monitor. As versões antigas estão em `arquivo/prototipos-de-layout/`.
 
 ## Próximos passos
 
-- Validar a V6 com o time e apagar as versões descartadas.
+- Validar com o time e responder as dúvidas em aberto (ver `CLAUDE.md`).
 - Servidor na porta 8001:
   - ler o banco do UiPath Orchestrator e os logs dos scripts Python;
   - aplicar no servidor as regras de alerta: falha, atraso em relação à agenda, duração muito acima do normal e itens enviados para tratamento manual;
+  - receber as ações da fila com login e registro de quem fez;
   - entregar os dados no mesmo formato de `dados-demo.js`.
-- Colocar o logo oficial (versões positiva e negativa) em `web/assets/marca/`. Os protótipos têm um espaço reservado, porque o manual proíbe redesenhar o logo.
+- Colocar o logo oficial (versões positiva e negativa) em `web/assets/marca/`. A tela tem um espaço reservado, porque o manual proíbe redesenhar o logo.

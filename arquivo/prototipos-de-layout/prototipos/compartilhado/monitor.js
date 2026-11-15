@@ -43,6 +43,9 @@
     filtro: '<path d="M4 5.5h16l-6.2 7.2v5.6l-3.6 1.9v-7.5z"/>',
     inicio: '<path d="M8 5.5v13l10-6.5z"/>',
     maquina: '<rect x="3.5" y="4.5" width="17" height="11" rx="1.5"/><path d="M8 19.5h8M12 15.5v4"/>',
+    automacoes: '<path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10"/><circle cx="5" cy="6.5" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="5" cy="17.5" r="1.2"/>',
+    abaixo: '<path d="M7 10l5 5 5-5"/>',
+    imprimir: '<path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M7 14h10v6.5H7z"/>',
   };
   const ico = (nome, extra) => '<svg class="ico' + (extra ? ' ' + extra : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONES[nome] + '</svg>';
 
@@ -89,7 +92,9 @@
     periodo: '7d', nivelLog: 'todos', execsVisiveis: 12,
     reconhecidos: {}, reconhecendo: null,
     // Só na organização "operacao": fila à esquerda, execução à direita.
-    verTodas: false, aba: 'agora', filaOrdem: 'prioridade', filaTec: 'todas', filaArea: 'todas', filaFiltros: false,
+    aba: 'agora', filaOrdem: 'prioridade', filaTec: 'todas', filaArea: 'todas', filaFiltros: false,
+    menuFila: null, acaoForm: null, verIgnoradas: false, execPendente: null,
+    indAba: 'graficos', resumo: 'dia', resumoArea: null, soDivergentes: false, validadas: {},
   };
   const OP = cfg.visao === 'operacao';
   const porId = Object.fromEntries(D.automacoes.map((a) => [a.id, a]));
@@ -98,6 +103,8 @@
   const reconhecimento = (al) => S.reconhecidos[al.id] || (al.reconhecido_por ? { por: al.reconhecido_por, em: al.reconhecido_em, nota: al.nota } : null);
   const execsDe = (id) => D.execucoes[id] || [];
   const ehCelular = () => window.matchMedia('(max-width: 899px)').matches;
+  // Telas com lista e detalhe lado a lado: a "mestre" (V3) e a aba Automações da V6.
+  const ehMestre = (rota) => (cfg.visao === 'mestre' && rota === 'geral') || (OP && rota === 'automacoes');
 
   function filtradas() {
     const b = S.busca.trim().toLowerCase();
@@ -204,18 +211,7 @@
   // ---------- Visão geral ----------
   function faixa(grande) {
     const c = contagem(); const h = execsHoje();
-    const ordem = OP ? ['ok', 'rodando', 'falha', 'atrasado', 'ressalva', 'pausado'] : ['falha', 'atrasado', 'rodando', 'ressalva', 'ok', 'pausado'];
-    if (OP) {
-      return '<section class="faixa faixa--op' + (grande ? ' faixa--tv' : '') + '" aria-label="Situação agora">' +
-        ordem.map((e) => {
-          const ativo = S.filtroEstados.has(e);
-          const tag = grande ? 'div' : 'button';
-          return '<' + tag + (grande ? '' : ' type="button" data-filtro="' + e + '" aria-pressed="' + ativo + '"') + ' class="contador contador--' + e + (c[e] ? '' : ' contador--zero') + (ativo ? ' contador--ativo' : '') + '">' +
-            '<span class="contador__ico">' + ico(e) + '</span><span class="contador__num">' + c[e] + '</span><span class="contador__rot">' + ESTADOS[e].rotulo + '</span></' + tag + '>';
-        }).join('') +
-        '<div class="faixa__hoje" title="Execuções concluídas hoje, de todas as automações"><span class="faixa__hoje-num">' + num(h.total) + '</span><span class="faixa__hoje-rot">atendidas hoje · ' + pct(h.taxa, 0) + ' sem falha</span></div>' +
-      '</section>';
-    }
+    const ordem = ['falha', 'atrasado', 'rodando', 'ressalva', 'ok', 'pausado'];
     return '<section class="faixa' + (grande ? ' faixa--tv' : '') + '" aria-label="Situação agora">' +
       ordem.map((e) => {
         const ativo = S.filtroEstados.has(e);
@@ -268,6 +264,8 @@
       '<label class="campo-select"><span class="sr">Área</span><select id="filtro-area">' +
         '<option value="todas">Todas as áreas</option>' + AREAS.map((ar) => '<option' + (S.area === ar ? ' selected' : '') + '>' + esc(ar) + '</option>').join('') +
       '</select></label>' +
+      (OP ? '<label class="campo-select"><span class="sr">Estado</span><select id="filtro-estado"><option value="todos">Todos os estados</option>' +
+        Object.keys(ESTADOS).map((e) => '<option value="' + e + '"' + (S.filtroEstados.has(e) && S.filtroEstados.size === 1 ? ' selected' : '') + '>' + ESTADOS[e].rotulo + '</option>').join('') + '</select></label>' : '') +
       '<label class="alternar"><input type="checkbox" id="agrupar"' + (S.agrupar ? ' checked' : '') + '><span>Agrupar por área</span></label>' +
       '<span class="filtros__conta">' + (temFiltro ? mostrando + ' de ' + total + ' · <button type="button" class="link" data-acao="limpar">Limpar filtros</button>' : total + ' automações') + '</span>' +
     '</div>';
@@ -378,10 +376,10 @@
       '</div>';
   }
 
-  // ---------- Organização "operacao": fila à esquerda, o que está acontecendo à direita ----------
-  const AGORA = ['falha', 'atrasado', 'rodando'];
+  // ---------- Organização "operacao" (V6): Fila | Agora (VMs) | Necessária ação manual, e as finalizadas embaixo ----------
   const numero = (execId) => '#' + execId.slice(1);
   const quandoTxt = (iso) => (mesmoDia(new Date(iso), new Date()) ? hora(iso) : dataHora(iso));
+  const EU = 'você'; // No sistema real, o usuário logado (login corporativo).
   function buscaCasa(a, extra) {
     const b = S.busca.trim().toLowerCase();
     return !b || (a.nome + ' ' + a.area + ' ' + a.maquina + ' ' + a.responsavel + ' ' + a.id + ' ' + a.tecnologia + ' ' + (extra || '')).toLowerCase().includes(b);
@@ -408,8 +406,8 @@
         '<div class="topo__cel topo__marca">' + logoSlot('tema') + '</div>' +
         '<div class="topo__cel topo__cel--nome"><span class="topo__produto">Monitor de Automações</span></div>' +
         '<nav class="nav topo__cel topo__cel--nav" aria-label="Visões">' +
-          '<a class="nav__item" href="#/geral" data-rota="geral" title="Painel">' + ico('geral') + '<span class="nav__rot">Painel</span></a>' +
-          '<a class="nav__item" href="#/alertas" data-rota="alertas" title="Alertas">' + ico('alertas') + '<span class="nav__rot">Alertas</span><span class="nav__badge" id="badge-alertas"></span></a>' +
+          '<a class="nav__item" href="#/geral" data-rota="geral" title="Painel">' + ico('geral') + '<span class="nav__rot">Painel</span><span class="nav__badge" id="badge-alertas" title="Necessária ação manual"></span></a>' +
+          '<a class="nav__item" href="#/automacoes" data-rota="automacoes" title="Automações">' + ico('automacoes') + '<span class="nav__rot">Automações</span></a>' +
           '<a class="nav__item" href="#/indicadores" data-rota="indicadores" title="Indicadores">' + ico('indicadores') + '<span class="nav__rot">Indicadores</span></a>' +
         '</nav>' +
         '<div class="topo__cel topo__cel--busca"><label class="busca">' + ico('busca') + '<span class="sr">Buscar automação</span><input id="busca" type="search" placeholder="Buscar automação, VM ou número…" autocomplete="off"></label></div>' +
@@ -419,69 +417,61 @@
           '<button type="button" class="botao botao--sec botao--tv" data-acao="tv" title="Modo TV">' + ico('tv') + '<span>Modo TV</span></button>' +
         '</div>' +
       '</header>' +
-      '<p class="demo-aviso">' + ico('ressalva') + '<span><strong>Dados de demonstração.</strong> ' + esc(cfg.versao + ' · ' + cfg.nomeVersao) + '</span><a href="../index.html">Comparar versões</a></p>' +
+      '<p class="demo-aviso">' + ico('ressalva') + '<span><strong>Dados de demonstração.</strong> ' + esc(cfg.versao + ' · ' + cfg.nomeVersao) + '. As VMs andam sozinhas a cada 15 s para mostrar a atualização.</span><a href="../index.html">Comparar versões</a></p>' +
       '<main class="conteudo" id="conteudo" tabindex="-1"></main>' +
       '<div class="gaveta__fundo" id="gaveta-fundo" hidden></div>' +
       '<aside class="gaveta" id="gaveta" aria-label="Detalhe da automação" hidden></aside>' +
-      '<div class="tv" id="tv" hidden></div>';
+      '<div class="tv" id="tv" hidden></div>' +
+      '<div class="recado" id="recado" role="status" aria-live="polite" hidden></div>';
   }
 
-  function listaAgora(tv) {
-    const busca = tv ? '' : S.busca.trim();
-    const peso = (a) => (a.estado === 'rodando' ? -a.ultima_execucao.duracao_s / a.duracao_media_s : 0);
-    return D.automacoes.filter((a) => {
-      if (tv) return AGORA.includes(a.estado);
-      if (!buscaCasa(a, a.ultima_execucao ? numero(a.ultima_execucao.id) : '')) return false;
-      if (S.filtroEstados.size) return S.filtroEstados.has(a.estado);
-      return busca || S.verTodas || AGORA.includes(a.estado);
-    }).sort((x, y) => ESTADOS[x.estado].ordem - ESTADOS[y.estado].ordem || peso(x) - peso(y) || x.nome.localeCompare(y.nome, 'pt-BR'));
+  // Recado curto depois de uma ação (some sozinho).
+  let tRecado;
+  function recado(msg, erro) {
+    const r = document.getElementById('recado');
+    if (!r) return;
+    r.textContent = msg; r.className = 'recado' + (erro ? ' recado--erro' : ''); r.hidden = false;
+    clearTimeout(tRecado); tRecado = setTimeout(() => { r.hidden = true; }, 4200);
   }
 
-  // Cartão na ordem do rascunho do time: automação e número | estado | início | máquina.
-  function cartaoOp(a, tv) {
-    const u = a.ultima_execucao;
-    const al = alertaDe(a.id); const r = al && reconhecimento(al);
-    const razao = u.duracao_s / a.duracao_media_s;
-    let rot; let val; let extra = ''; let quando; let sub; let subCls = '';
-    if (a.estado === 'rodando') {
-      rot = 'Rodando'; val = esc(u.etapa || 'Processando');
-      if (u.itens_previstos > 1) {
-        const p = Math.min(1, u.itens_ok / u.itens_previstos);
-        extra = '<span class="op-card__prog"><span class="progresso" aria-hidden="true"><span style="width:' + (p * 100).toFixed(0) + '%"></span></span><span class="op-card__mini">item ' + num(u.itens_ok) + ' de ' + num(u.itens_previstos) + '</span></span>';
-      }
-      quando = hora(u.inicio);
-      if (razao > 2.5) { sub = rel(u.inicio, '') + '</span><span class="op-card__sub op-card__sub--alerta">' + razao.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '× o tempo normal'; }
-      else { sub = rel(u.inicio, '') + ' · normal ' + duracao(a.duracao_media_s); if (razao > 1.2) subCls = ' op-card__sub--aviso'; }
-    } else if (a.estado === 'falha') {
-      rot = 'Falhou'; val = esc(u.mensagem); quando = quandoTxt(u.inicio); sub = 'parou ' + rel(u.fim || u.inicio);
-    } else if (a.estado === 'atrasado') {
-      rot = 'Atrasada'; val = 'Sem sinal no log nem no banco'; quando = hora(a.esperado_em); sub = 'esperada ' + rel(a.esperado_em);
-    } else if (a.estado === 'ressalva') {
-      rot = 'Com ressalva'; val = esc(u.mensagem); quando = quandoTxt(u.inicio); sub = duracao(u.duracao_s) + ' · ' + num(u.itens_ok) + ' itens OK';
-    } else if (a.estado === 'pausado') {
-      rot = 'Pausada'; val = esc(a.pausada_por); quando = quandoTxt(u.inicio); sub = 'última execução';
-    } else {
-      rot = 'Concluída'; val = num(u.itens_ok) + (u.itens_ok === 1 ? ' item processado' : ' itens processados'); quando = quandoTxt(u.inicio);
-      sub = duracao(u.duracao_s) + (a.proxima_execucao ? ' · próxima ' + dataHora(a.proxima_execucao).replace('hoje ', '') : '');
-    }
-    if (r && !tv) extra += '<span class="op-card__rec">Reconhecido por ' + esc(r.por) + '</span>';
-    const numTxt = a.estado === 'atrasado' ? a.id : numero(u.id);
-    const abre = tv ? 'div' : 'button';
-    return '<li class="op-card op-card--' + a.estado + (a.estado === 'rodando' && razao > 2.5 ? ' op-card--lenta' : '') + (r ? ' op-card--reconhecido' : '') + '">' +
-      '<' + abre + (tv ? '' : ' type="button" data-abrir="' + a.id + '"') + ' class="op-card__in">' +
-        '<span class="op-card__c op-card__c--nome"><span class="op-card__nome">' + esc(a.nome) + '</span><span class="op-card__sub"><span class="op-card__num">' + numTxt + '</span> · ' + esc(a.area) + '</span></span>' +
-        '<span class="op-card__c op-card__c--estado"><span class="op-card__rot">' + ico(a.estado) + '<span>' + rot + ':</span></span><span class="op-card__val">' + val + '</span>' + extra + '</span>' +
-        '<span class="op-card__c op-card__c--tempo"><span class="op-card__hora">' + ico(a.estado === 'atrasado' ? 'atrasado' : 'inicio') + '<span>' + quando + '</span></span><span class="op-card__sub' + subCls + '">' + sub + '</span></span>' +
-        '<span class="op-card__c op-card__c--vm"><span class="op-card__vm" title="Máquina">' + ico('maquina') + '<span><span class="sr">Máquina </span>' + esc(a.maquina) + '</span></span><span class="tec tec--' + a.tecnologia.toLowerCase() + '">' + a.tecnologia + '</span></span>' +
-      '</' + abre + '></li>';
-  }
-
+  // ----- Fila -----
   function itensFila(tv) {
-    return D.fila.map((f) => Object.assign({ a: porId[f.automacao_id] }, f)).filter((f) => tv || (
+    return D.fila.filter((f) => !f.ignorada).map((f) => Object.assign({ a: porId[f.automacao_id] }, f)).filter((f) => tv || (
       (S.filaTec === 'todas' || f.a.tecnologia === S.filaTec) && (S.filaArea === 'todas' || f.a.area === S.filaArea) && buscaCasa(f.a, numero(f.id))));
   }
   const momentoFila = (f) => new Date(f.entrou_em || f.previsto_para).getTime();
-  const ordenaFila = (l) => l.sort((x, y) => (S.filaOrdem === 'prioridade' ? x.prioridade - y.prioridade : 0) || momentoFila(x) - momentoFila(y));
+  const ordenaFila = (l) => l.sort((x, y) => (y.atender_agora ? 1 : 0) - (x.atender_agora ? 1 : 0) || (S.filaOrdem === 'prioridade' ? x.prioridade - y.prioridade : 0) || momentoFila(x) - momentoFila(y));
+
+  const ACOES_FILA = [
+    ['assumir', 'Assumir'], ['ignorar', 'Ignorar'], ['atender', 'Atender agora'], ['agendar', 'Agendar…'], ['comentar', 'Adicionar comentário…'],
+  ];
+
+  function menuFila(f) {
+    const aberto = S.menuFila === f.id;
+    return '<div class="acoes-fila">' +
+      '<button type="button" class="botao botao--sec botao--peq acoes-fila__botao" data-menu-fila="' + f.id + '" aria-haspopup="menu" aria-expanded="' + aberto + '"' + (aberto ? ' aria-controls="menu-' + f.id + '"' : '') + '>' +
+        '<span>Ações</span>' + ico('abaixo') + '<span class="sr"> para ' + numero(f.id) + '</span></button>' +
+      (aberto ? '<ul class="menu" id="menu-' + f.id + '" role="menu" aria-label="Ações para ' + numero(f.id) + '">' + ACOES_FILA.map(([k, rot]) =>
+        '<li role="none"><button type="button" role="menuitem" class="menu__i' + (k === 'ignorar' ? ' menu__i--perigo' : '') + '" data-acao-fila="' + k + '" data-id="' + f.id + '">' +
+          (k === 'assumir' && f.assumida_por ? 'Soltar (deixar de assumir)' : k === 'atender' && f.atender_agora ? 'Atender agora (já é a próxima)' : rot) + '</button></li>').join('') + '</ul>' : '') +
+    '</div>';
+  }
+
+  function formFila(f) {
+    if (!S.acaoForm || S.acaoForm.id !== f.id) return '';
+    if (S.acaoForm.tipo === 'agendar') {
+      const d = new Date(Date.now() + 30 * 60000); d.setSeconds(0, 0);
+      const local = (x) => new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      return '<form class="form-fila" data-form-fila="agendar" data-id="' + f.id + '">' +
+        '<label for="quando-' + f.id + '">Agendar ' + numero(f.id) + ' para</label>' +
+        '<input id="quando-' + f.id + '" name="quando" type="datetime-local" required min="' + local(new Date()) + '" value="' + local(d) + '">' +
+        '<div class="form-fila__acoes"><button type="submit" class="botao botao--pri botao--peq">Agendar</button><button type="button" class="botao botao--sec botao--peq" data-acao="cancelar-fila">Cancelar</button></div></form>';
+    }
+    return '<form class="form-fila" data-form-fila="comentar" data-id="' + f.id + '">' +
+      '<label for="coment-' + f.id + '">Comentário para o time</label>' +
+      '<textarea id="coment-' + f.id + '" name="texto" rows="2" maxlength="500" required placeholder="Ex.: segurar até o arquivo da administradora chegar"></textarea>' +
+      '<div class="form-fila__acoes"><button type="submit" class="botao botao--pri botao--peq">Salvar</button><button type="button" class="botao botao--sec botao--peq" data-acao="cancelar-fila">Cancelar</button></div></form>';
+  }
 
   function itemFila(f, tv) {
     const ag = f.situacao === 'aguardando';
@@ -489,21 +479,29 @@
     const quando = ag
       ? '<span class="fitem__quando fitem__quando--aguardando' + (espera > 10 ? ' fitem__quando--demora' : '') + '">Aguardando robô ' + rel(f.entrou_em) + '</span>'
       : '<span class="fitem__quando">Agendada ' + quandoTxt(f.previsto_para) + ' · ' + rel(f.previsto_para) + '</span>';
-    const origem = !ag || tv ? '' : '<span class="fitem__origem">' + (f.origem === 'manual' ? 'Disparada por ' : 'Gatilho: ') + esc(f.disparada_por) + '</span>';
+    const origem = tv || (!ag && f.origem === 'agenda') ? '' : '<span class="fitem__origem">' + (f.origem === 'manual' ? (ag ? 'Disparada por ' : 'Agendada por ') : 'Gatilho: ') + esc(f.disparada_por) + '</span>';
+    const marcas = (f.atender_agora ? '<span class="marca marca--proxima">Próxima a rodar</span>' : '') +
+      (f.assumida_por ? '<span class="marca">Assumida por ' + esc(f.assumida_por) + '</span>' : '');
+    const coms = f.comentarios || [];
+    const comentarios = tv || !coms.length ? '' : '<ul class="fitem__coments">' + (coms.length > 2 ? '<li class="fitem__coment-mais">+' + (coms.length - 2) + ' comentários antes</li>' : '') +
+      coms.slice(-2).map((c) => '<li><strong>' + esc(c.por) + '</strong> <span class="fraco">' + relativo(c.em) + '</span>: ' + esc(c.texto) + '</li>').join('') + '</ul>';
     const abre = tv ? 'div' : 'button';
-    return '<li class="fitem fitem--' + f.situacao + '"><' + abre + (tv ? '' : ' type="button" data-abrir="' + f.a.id + '"') + ' class="fitem__in">' +
-      '<span class="fitem__l1"><span class="fitem__nome">' + esc(f.a.nome) + '</span><span class="fitem__num">' + numero(f.id) + '</span></span>' +
-      '<span class="fitem__l2"><span class="tec tec--' + f.a.tecnologia.toLowerCase() + '">' + f.a.tecnologia + '</span><span class="fitem__area">' + esc(f.a.area) + '</span>' +
-        '<span class="prio prio--' + f.prioridade + '" title="Prioridade ' + f.prioridade + ' (1 é a mais alta)">Prioridade ' + f.prioridade + '</span></span>' +
-      quando + origem +
-    '</' + abre + '></li>';
+    return '<li class="fitem fitem--' + f.situacao + (f.atender_agora ? ' fitem--proxima' : '') + (S.menuFila === f.id ? ' fitem--menu' : '') + '">' +
+      '<' + abre + (tv ? '' : ' type="button" data-abrir="' + f.a.id + '"') + ' class="fitem__in">' +
+        '<span class="fitem__l1"><span class="fitem__nome">' + esc(f.a.nome) + '</span><span class="fitem__num">' + numero(f.id) + '</span></span>' +
+        '<span class="fitem__l2"><span class="tec tec--' + f.a.tecnologia.toLowerCase() + '">' + f.a.tecnologia + '</span><span class="fitem__area">' + esc(f.a.area) + '</span>' +
+          '<span class="prio prio--' + f.prioridade + '" title="Prioridade ' + f.prioridade + ' (1 é a mais alta)">Prioridade ' + f.prioridade + '</span></span>' +
+        quando + origem +
+      '</' + abre + '>' +
+      (tv ? '' : (marcas || comentarios || ag ? '<div class="fitem__pe">' + (marcas ? '<span class="fitem__marcas">' + marcas + '</span>' : '') + comentarios + (ag ? menuFila(f) : '') + '</div>' : '') + formFila(f)) +
+    '</li>';
   }
 
   function cabFila() {
     const n = itensFila().length;
     const ativos = (S.filaTec !== 'todas' ? 1 : 0) + (S.filaArea !== 'todas' ? 1 : 0);
     const tecs = ['todas', 'UiPath', 'Python'];
-    return '<div class="fila__cab"><h2 class="fila__h">Fila <span class="fila__conta">' + n + '</span></h2>' +
+    return '<div class="fila__cab"><h2 class="op__h" id="t-fila">Fila <span class="op__conta">' + n + '</span></h2>' +
       '<button type="button" class="botao-ico' + (ativos ? ' botao-ico--ativo' : '') + '" data-acao="fila-filtros" aria-expanded="' + S.filaFiltros + '" aria-controls="fila-filtros" title="Filtrar a fila">' + ico('filtro') + '<span class="sr">Filtrar a fila</span>' + (ativos ? '<span class="botao-ico__n">' + ativos + '</span>' : '') + '</button>' +
       '<button type="button" class="botao botao--sec botao--peq fila__ordem" data-acao="fila-ordem" title="Trocar a ordem da fila">' + ico('ordenar') + '<span><span class="sr">Ordenada por </span>' + (S.filaOrdem === 'prioridade' ? 'Prioridade' : 'Horário') + '</span></button>' +
     '</div>' +
@@ -515,55 +513,149 @@
 
   function painelFila() {
     const todos = itensFila();
-    if (!todos.length) return '<div class="vazio vazio--grande"><p><strong>Nada na fila' + (S.busca || S.filaTec !== 'todas' || S.filaArea !== 'todas' ? ' com esses filtros' : '') + '.</strong></p>' +
-      (S.busca || S.filaTec !== 'todas' || S.filaArea !== 'todas' ? '<button type="button" class="botao botao--sec botao--peq" data-acao="limpar">Limpar filtros</button>' : '<p>Nenhuma execução esperando robô nem agendada para as próximas horas.</p>') + '</div>';
-    const grupo = (titulo, l) => (l.length ? '<section class="fila__grupo"><h3 class="fila__titulo">' + titulo + ' <span>' + l.length + '</span></h3><ol class="fila__lista">' + l.map((f) => itemFila(f)).join('') + '</ol></section>' : '');
-    return grupo('Aguardando robô', ordenaFila(todos.filter((f) => f.situacao === 'aguardando'))) +
+    const ignoradas = D.fila.filter((f) => f.ignorada);
+    const comFiltro = S.busca || S.filaTec !== 'todas' || S.filaArea !== 'todas';
+    const blocoIgn = ignoradas.length ? '<div class="fila__ign"><button type="button" class="link" data-acao="ver-ignoradas" aria-expanded="' + S.verIgnoradas + '">' + ignoradas.length + (ignoradas.length === 1 ? ' ignorada' : ' ignoradas') + (S.verIgnoradas ? ' · esconder' : ' · mostrar') + '</button>' +
+      (S.verIgnoradas ? '<ul>' + ignoradas.map((f) => '<li><span><strong>' + esc(porId[f.automacao_id].nome) + '</strong> ' + numero(f.id) + '<br><span class="fraco">ignorada por ' + esc(f.ignorada.por) + ' ' + relativo(f.ignorada.em) + '</span></span>' +
+        '<button type="button" class="botao botao--sec botao--peq" data-acao-fila="desfazer-ignorar" data-id="' + f.id + '">Desfazer</button></li>').join('') + '</ul>' : '') + '</div>' : '';
+    if (!todos.length) return '<div class="vazio vazio--grande"><p><strong>Nada na fila' + (comFiltro ? ' com esses filtros' : '') + '.</strong></p>' +
+      (comFiltro ? '<button type="button" class="botao botao--sec botao--peq" data-acao="limpar">Limpar filtros</button>' : '<p>Nenhuma execução esperando robô nem agendada para as próximas horas.</p>') + '</div>' + blocoIgn;
+    const grupo = (titulo, l, extra) => (l.length || extra ? '<section class="fila__grupo"><h3 class="fila__titulo">' + titulo + ' <span>' + l.length + '</span></h3>' + (l.length ? '<ol class="fila__lista">' + l.map((f) => itemFila(f)).join('') + '</ol>' : '') + (extra || '') + '</section>' : '');
+    return grupo('Aguardando robô', ordenaFila(todos.filter((f) => f.situacao === 'aguardando')), blocoIgn) +
       grupo('Próximas na agenda', ordenaFila(todos.filter((f) => f.situacao === 'agendada')));
   }
 
+  // ----- Agora: as VMs fixas, cada uma com o que roda nela -----
+  function finalizadas() {
+    const t = Date.now(); const l = [];
+    Object.values(D.execucoes).forEach((execs) => execs.forEach((e) => { if (e.fim && e.status !== 'rodando' && new Date(e.fim).getTime() <= t) l.push(e); }));
+    return l.sort((x, y) => new Date(y.fim) - new Date(x.fim));
+  }
+
+  function blocoVM(vm, fins, tv) {
+    const a = vm.automacao_id ? porId[vm.automacao_id] : null;
+    const b = tv ? '' : S.busca.trim().toLowerCase();
+    if (!a) {
+      const ult = fins.find((e) => e.maquina === vm.id);
+      const casa = !b || vm.id.toLowerCase().includes(b);
+      return '<li class="vm vm--livre' + (casa ? '' : ' vm--apagada') + '"><div class="vm__in">' +
+        '<span class="vm__cab">' + ico('maquina') + '<span class="vm__nome">' + vm.id + '</span><span class="vm__sit">Livre</span></span>' +
+        '<span class="vm__livre">Sem automação rodando ' + rel(vm.livre_desde) + '</span>' +
+        (ult ? '<span class="vm__ult">Última: <strong>' + esc(porId[ult.automacao_id].nome) + '</strong> · ' + (ult.status === 'falha' ? 'falhou' : 'terminou') + ' às ' + hora(ult.fim) + '</span>' : '') +
+        (itensFila(true).some((f) => f.situacao === 'aguardando') ? '' : '<span class="vm__ult">Nada aguardando robô na fila.</span>') +
+      '</div></li>';
+    }
+    const u = a.ultima_execucao;
+    const razao = u.duracao_s / a.duracao_media_s;
+    const lenta = razao > 2.5;
+    const casa = !b || buscaCasa(a, numero(u.id) + ' ' + vm.id);
+    const p = u.itens_previstos > 1 ? Math.min(1, u.itens_ok / u.itens_previstos) : null;
+    const abre = tv ? 'div' : 'button';
+    return '<li class="vm vm--rodando' + (lenta ? ' vm--lenta' : '') + (casa ? '' : ' vm--apagada') + '">' +
+      '<' + abre + (tv ? '' : ' type="button" data-abrir="' + a.id + '"') + ' class="vm__in">' +
+        '<span class="vm__cab">' + ico('maquina') + '<span class="vm__nome">' + vm.id + '</span><span class="vm__sit">' + ico('rodando') + 'Rodando</span></span>' +
+        '<span class="vm__auto">' + esc(a.nome) + '</span>' +
+        '<span class="vm__sub"><strong>' + numero(u.id) + '</strong> · ' + esc(a.area) + ' · <span class="tec tec--' + a.tecnologia.toLowerCase() + '">' + a.tecnologia + '</span></span>' +
+        '<span class="vm__etapa"><span class="fraco">Etapa:</span> ' + esc(u.etapa || 'Processando') + '</span>' +
+        (p != null ? '<span class="vm__prog"><span class="progresso" aria-hidden="true"><span style="width:' + (p * 100).toFixed(0) + '%"></span></span><span class="vm__mini">item ' + num(u.itens_ok) + ' de ' + num(u.itens_previstos) + '</span></span>' : '') +
+        '<span class="vm__tempo">' + ico('inicio') + '<span class="vm__hora">' + hora(u.inicio) + '</span><span class="vm__dur">' + rel(u.inicio, '') + '</span>' +
+          (lenta ? '<span class="vm__alerta">' + razao.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '× o tempo normal</span>' : '<span class="vm__dur' + (razao > 1.2 ? ' vm__dur--aviso' : '') + '">normal ' + duracao(a.duracao_media_s) + '</span>') + '</span>' +
+      '</' + abre + '></li>';
+  }
+
+  function gradeVMs(tv) {
+    const fins = finalizadas();
+    return '<ul class="vms' + (tv ? ' vms--tv' : '') + '">' + D.vms.map((vm) => blocoVM(vm, fins, tv)).join('') + '</ul>';
+  }
+  const textoVMs = () => { const o = D.vms.filter((v) => v.situacao === 'ocupada').length; return o + ' de ' + D.vms.length + ' VMs rodando'; };
+
+  // ----- Necessária ação manual (o que antes era a aba Alertas), com o trecho do log -----
+  function trechoLog(a, al) {
+    const u = a.ultima_execucao;
+    if (al.tipo === 'atraso') return '<p class="manual__semlog">Sem log desta execução: o robô não iniciou. Último sinal: ' + numero(u.id) + ', que terminou ' + dataHora(u.fim || u.inicio) + '.</p>';
+    let l = D.logDaExecucao(u.id);
+    l = al.tipo === 'duracao' ? l.slice(-3) : l.filter((x) => x.nivel !== 'INFO').slice(-4);
+    if (!l.length) return '';
+    return '<pre class="log log--mini" tabindex="0" aria-label="Trecho do log de ' + numero(u.id) + '">' + l.map((x) => '<span class="log__l log__l--' + x.nivel.toLowerCase() + '"><span class="log__h">' + new Date(x.hora).toLocaleTimeString('pt-BR') + '</span> <span class="log__n">' + x.nivel.padEnd(5) + '</span> ' + esc(x.msg) + '</span>').join('') + '</pre>';
+  }
+
+  function itemManual(al, tv) {
+    const a = porId[al.automacao_id]; const r = reconhecimento(al); const u = a.ultima_execucao;
+    const est = al.tipo === 'atraso' ? 'atrasado' : al.tipo === 'duracao' ? 'rodando' : al.tipo;
+    return '<li class="manual manual--' + est + (al.tipo === 'duracao' ? ' manual--duracao' : '') + (r ? ' manual--rec' : '') + '">' +
+      '<p class="manual__tipo">' + ico(al.tipo === 'duracao' ? 'duracao' : est) + '<span>' + esc(al.titulo) + '</span><span class="manual__desde">' + rel(al.desde) + '</span></p>' +
+      (tv ? '<p class="manual__nome">' + esc(a.nome) + '</p>' : '<button type="button" class="manual__nome" data-abrir="' + a.id + '">' + esc(a.nome) + '</button>') +
+      '<p class="manual__sub">' + (al.tipo === 'atraso' ? a.id : numero(u.id)) + ' · ' + esc(a.maquina) + ' · ' + a.tecnologia + (tv ? '' : ' · ' + esc(a.responsavel)) + '</p>' +
+      '<p class="manual__msg">' + esc(al.mensagem) + '</p>' +
+      (tv ? '' : trechoLog(a, al)) +
+      (r && !tv ? '<p class="manual__rec">Reconhecido por ' + esc(r.por) + ' ' + relativo(r.em) + (r.nota ? ': “' + esc(r.nota) + '”' : '') + '</p>' : '') +
+      (tv ? '' : (S.reconhecendo === al.id ? formReconhecer(al) :
+        '<div class="manual__acoes">' + (r ? '' : '<button type="button" class="botao botao--pri botao--peq" data-reconhecer="' + al.id + '">Reconhecer</button>') +
+        '<button type="button" class="botao botao--sec botao--peq" data-abrir="' + a.id + '">' + ico('log') + '<span>Log completo</span></button></div>')) +
+    '</li>';
+  }
+
+  function colunaManual(tv) {
+    const casa = (al) => tv || buscaCasa(porId[al.automacao_id], numero(porId[al.automacao_id].ultima_execucao.id));
+    const abertos = alertasAbertos().filter(casa);
+    const rec = tv ? [] : D.alertas.filter((al) => reconhecimento(al)).filter(casa);
+    if (!abertos.length && !rec.length) return '<p class="vazio">' + ico('ok') + (S.busca && !tv ? ' Nada com essa busca.' : ' Nenhuma automação precisa de ação manual agora.') + '</p>';
+    return (abertos.length ? '<ol class="manuais">' + abertos.map((al) => itemManual(al, tv)).join('') + '</ol>' : '<p class="vazio">' + ico('ok') + ' Nada em aberto.</p>') +
+      (rec.length ? '<h3 class="fila__titulo manual__h-rec">Já reconhecidos <span>' + rec.length + '</span></h3><ol class="manuais">' + rec.map((al) => itemManual(al)).join('') + '</ol>' : '');
+  }
+
+  // ----- Últimas finalizadas, discreta, no pé da tela -----
+  function faixaFinalizadas(tv) {
+    const l = finalizadas().filter((e) => tv || buscaCasa(porId[e.automacao_id], numero(e.id))).slice(0, tv ? 8 : 16);
+    return '<section class="op__fim' + (tv ? ' op__fim--tv' : '') + '" aria-labelledby="t-fim' + (tv ? '-tv' : '') + '"><h2 class="fim__h" id="t-fim' + (tv ? '-tv' : '') + '">Últimas finalizadas</h2>' +
+      (l.length ? '<ol class="fim__lista">' + l.map((e) => {
+        const a = porId[e.automacao_id]; const est = EXEC_PARA_ESTADO[e.status];
+        const tag = tv ? 'div' : 'button';
+        return '<li><' + tag + (tv ? '' : ' type="button" data-abrir="' + a.id + '" data-abrir-exec="' + e.id + '"') + ' class="fim__i fim__i--' + est + '" title="' + esc(a.nome + ' · ' + STATUS_EXEC[e.status]) + '">' +
+          '<time>' + hora(e.fim) + '</time>' + ico(est) + '<span class="sr">' + STATUS_EXEC[e.status] + ': </span><span class="fim__nome">' + esc(a.nome) + '</span>' +
+          '<span class="fim__meta">' + numero(e.id) + ' · ' + duracao(e.duracao_s) + ' · ' + esc(e.maquina) + '</span></' + tag + '></li>';
+      }).join('') + '</ol>' : '<p class="fim__vazio">Nada com essa busca.</p>') +
+    '</section>';
+  }
+
   function telaOperacao() {
-    const lista = listaAgora();
-    const busca = S.busca.trim();
-    let titulo = 'Agora';
-    if (S.filtroEstados.size) titulo = [...S.filtroEstados].map((e) => ESTADOS[e].rotulo).join(' + ');
-    else if (busca) titulo = 'Busca: “' + busca + '”';
-    else if (S.verTodas) titulo = 'Todas as automações';
-    const desc = !S.filtroEstados.size && !busca && !S.verTodas ? '<span class="op__desc">falhas, atrasos e o que está rodando</span>' : '';
-    const acao = S.filtroEstados.size || S.verTodas || busca
-      ? '<button type="button" class="link" data-acao="ver-agora">Voltar para o agora</button>'
-      : '<button type="button" class="link" data-acao="ver-todas">Ver todas as ' + D.automacoes.length + '</button>';
-    let corpo;
-    if (lista.length) corpo = '<ul class="op-cards">' + lista.map((a) => cartaoOp(a)).join('') + '</ul>';
-    else if (busca || S.filtroEstados.size) corpo = vazioFiltro();
-    else corpo = '<p class="vazio vazio--grande">' + ico('ok') + ' <strong>Tudo em dia.</strong> Nenhuma automação rodando, atrasada ou com falha agora.</p>';
+    const nFila = itensFila().length; const nManual = alertasAbertos().length;
+    const aba = (k, rot, n) => '<button type="button" data-aba="' + k + '" aria-pressed="' + (S.aba === k) + '">' + rot + ' <span class="op__n">' + n + '</span></button>';
     return '<h1 class="sr">Painel</h1><div class="op" data-mostrando="' + S.aba + '">' +
-      '<div class="op__fila-cab">' + cabFila() + '</div>' +
-      '<div class="op__faixa">' + faixa() + '</div>' +
-      '<div class="op__abas"><div class="segmentado" role="group" aria-label="Mostrar">' +
-        '<button type="button" data-aba="agora" aria-pressed="' + (S.aba === 'agora') + '">' + esc(titulo.length > 18 ? 'Painel' : titulo) + ' <span class="op__n">' + lista.length + '</span></button>' +
-        '<button type="button" data-aba="fila" aria-pressed="' + (S.aba === 'fila') + '">Fila <span class="op__n">' + itensFila().length + '</span></button></div></div>' +
-      '<section class="op__fila" data-rolagem="fila" aria-label="Fila de execuções">' + painelFila() + '</section>' +
-      '<section class="op__agora" data-rolagem="agora" aria-labelledby="t-agora">' +
-        '<header class="op__agora-cab"><h2 id="t-agora">' + esc(titulo) + ' <span class="op__conta">' + lista.length + '</span></h2>' + desc + acao + '</header>' +
-        corpo +
-      '</section>' +
+      '<div class="op__abas"><div class="segmentado" role="group" aria-label="Mostrar">' + aba('fila', 'Fila', nFila) + aba('agora', 'Agora', D.vms.filter((v) => v.situacao === 'ocupada').length + '/' + D.vms.length) + aba('manual', 'Ação manual', nManual) + '</div></div>' +
+      '<div class="op__cab op__cab--fila">' + cabFila() + '</div>' +
+      '<div class="op__cab op__cab--agora"><h2 class="op__h" id="t-agora">Agora <span class="op__conta" id="conta-vms">' + textoVMs() + '</span></h2></div>' +
+      '<div class="op__cab op__cab--manual"><h2 class="op__h" id="t-manual">Necessária ação manual <span class="op__conta">' + nManual + '</span></h2></div>' +
+      '<section class="op__fila" data-rolagem="fila" aria-labelledby="t-fila">' + painelFila() + '</section>' +
+      '<section class="op__agora" data-rolagem="agora" aria-labelledby="t-agora">' + gradeVMs() + '</section>' +
+      '<section class="op__manual" data-rolagem="manual" aria-labelledby="t-manual">' + colunaManual() + '</section>' +
+      faixaFinalizadas() +
     '</div>';
   }
 
   function telaTVOp() {
-    const lista = listaAgora(true);
     const fila = itensFila(true);
     const ordenada = ordenaFila(fila.filter((f) => f.situacao === 'aguardando')).concat(ordenaFila(fila.filter((f) => f.situacao === 'agendada')));
+    const abertos = alertasAbertos();
     return '<header class="tv__cab">' + logoSlot('tema') + '<h1 class="tv__titulo">Automações</h1>' +
         '<span class="tv__atualizado">Atualizado às <time data-atualizado></time></span><time class="tv__relogio" id="tv-relogio"></time>' +
         '<button type="button" class="botao botao--sec botao--peq tv__sair" data-acao="sair-tv">' + ico('sair') + '<span>Sair (Esc)</span></button></header>' +
-      faixa(true) +
       '<div class="tv__corpo tv__corpo--op">' +
         '<section class="tv__fila" aria-labelledby="t-tv-fila"><h2 id="t-tv-fila">Fila <span>' + fila.length + '</span></h2><ol class="fila__lista">' + ordenada.map((f) => itemFila(f, true)).join('') + '</ol></section>' +
-        '<section class="tv__agora" aria-labelledby="t-tv-agora"><h2 id="t-tv-agora">Agora <span>' + lista.length + '</span></h2>' +
-          (lista.length ? '<ul class="op-cards op-cards--tv">' + lista.map((a) => cartaoOp(a, true)).join('') + '</ul>' : '<p class="vazio">' + ico('ok') + ' Tudo em dia.</p>') + '</section>' +
-      '</div>';
+        '<section class="tv__agora" aria-labelledby="t-tv-agora"><h2 id="t-tv-agora">Agora <span>' + textoVMs() + '</span></h2>' + gradeVMs(true) + '</section>' +
+        '<section class="tv__manual" aria-labelledby="t-tv-manual"><h2 id="t-tv-manual">Ação manual <span>' + abertos.length + '</span></h2>' + colunaManual(true) + '</section>' +
+      '</div>' + faixaFinalizadas(true);
+  }
+
+  // ----- Automações: lista à esquerda e detalhe à direita, como na V3 -----
+  function telaAutomacoes() {
+    const lista = filtradas();
+    if (!S.sel && !ehCelular()) { const al = alertasAbertos()[0]; S.sel = al ? al.automacao_id : D.automacoes[0].id; }
+    return '<h1 class="sr">Automações</h1>' +
+      '<div class="mestre mestre--op"><section class="mestre__lista" aria-label="Automações">' +
+        '<div class="mestre__filtros">' + barraFiltros(D.automacoes.length, lista.length) + '</div>' +
+        (lista.length ? listaMestre(lista) : vazioFiltro()) +
+      '</section><section class="mestre__detalhe" id="detalhe-fixo" aria-label="Detalhe da automação">' + (S.sel ? detalhe(porId[S.sel], true) : '') + '</section></div>';
   }
 
   // ---------- Detalhe ----------
@@ -605,7 +697,8 @@
   function detalhe(a, fixo) {
     if (!a) return '';
     const execs = execsDe(a.id);
-    if (!S.execSel || !execs.find((e) => e.id === S.execSel)) S.execSel = execs[0] ? execs[0].id : null;
+    // execSel vazio ('') = o time fechou a execução aberta de propósito (só na V6, onde as linhas abrem e fecham).
+    if (S.execSel == null || (S.execSel !== '' && !execs.find((e) => e.id === S.execSel))) S.execSel = execs[0] ? execs[0].id : null;
     const exSel = execs.find((e) => e.id === S.execSel);
     const al = alertaDe(a.id);
     const r = al && reconhecimento(al);
@@ -644,21 +737,41 @@
         '<div><dt>Duração média</dt><dd class="num">' + duracao(a.duracao_media_s) + '</dd></div>' +
         '<div><dt>Sucesso (30 dias)</dt><dd class="num">' + pct(a.taxa_sucesso) + ' <span class="fraco">de ' + fin.length + '</span></dd></div>' +
         '<div><dt>Horas poupadas (30 dias)</dt><dd class="num">' + num(horas) + ' h <span class="fraco">' + num(itens30) + ' itens</span></dd></div>' +
+        (OP ? '<div><dt>Última VM</dt><dd>' + esc(a.maquina) + '</dd></div>' +
+          '<div><dt>Prioridade na fila</dt><dd class="num">' + a.prioridade + ' <span class="fraco">(1 é a mais alta)</span></dd></div>' +
+          '<div><dt>Hoje</dt><dd class="num">' + execs.filter((e) => mesmoDia(new Date(e.inicio), new Date())).length + ' de ' + a.previstas.hoje + ' <span class="fraco">previstas na agenda</span></dd></div>' : '') +
       '</dl>' +
       '<section class="detalhe__bloco" aria-labelledby="t-dur"><h3 id="t-dur">Duração das últimas execuções</h3>' + graficoDuracao(a, execs) + '</section>' +
       '<section class="detalhe__bloco" aria-labelledby="t-execs"><h3 id="t-execs">Execuções</h3>' +
         '<div class="tabela-rolagem"><table class="execs"><thead><tr><th scope="col">Início</th><th scope="col">Duração</th><th scope="col">Resultado</th><th scope="col" class="num">Itens</th><th scope="col" class="c-msg">Mensagem</th></tr></thead><tbody>' +
         visiveis.map((e) => '<tr class="execs__l' + (e.id === S.execSel ? ' execs__l--sel' : '') + '" data-exec="' + e.id + '" aria-selected="' + (e.id === S.execSel) + '">' +
-          '<td><button type="button" class="link-exec" data-exec="' + e.id + '">' + dataHora(e.inicio) + '</button></td>' +
+          '<td><button type="button" class="link-exec" data-exec="' + e.id + '"' + (OP ? ' aria-expanded="' + (e.id === S.execSel) + '"' : '') + '>' + (OP ? ico('abaixo', 'link-exec__seta') : '') + dataHora(e.inicio) + '</button></td>' +
           '<td class="num">' + (e.status === 'rodando' ? rel(e.inicio, '') : duracao(e.duracao_s)) + '</td>' +
           '<td>' + chip(EXEC_PARA_ESTADO[e.status], STATUS_EXEC[e.status]) + '</td>' +
           '<td class="num">' + num(e.itens_ok) + (e.itens_erro ? ' <span class="fraco">+' + e.itens_erro + '</span>' : '') + '</td>' +
-          '<td class="c-msg">' + esc(e.mensagem) + '</td></tr>').join('') +
+          '<td class="c-msg">' + esc(e.mensagem) + '</td></tr>' + (OP && e.id === S.execSel ? maisExec(a, e) : '')).join('') +
         '</tbody></table></div>' +
         (execs.length > S.execsVisiveis ? '<button type="button" class="botao botao--sec botao--peq botao--mais" data-acao="mais-execs">Mostrar mais ' + Math.min(12, execs.length - S.execsVisiveis) + ' de ' + (execs.length - S.execsVisiveis) + '</button>' : '') +
       '</section>' +
-      blocoLog(a, exSel) +
+      (OP ? '' : blocoLog(a, exSel)) +
     '</article>';
+  }
+
+  // V6: a linha da execução abre ("boxdrop") com tudo o que se sabe dela e o log completo.
+  function maisExec(a, e) {
+    const origem = { agenda: 'Agenda', manual: 'Disparo manual', gatilho: 'Gatilho' };
+    const campos = [
+      ['Número', numero(e.id)], ['Resultado', STATUS_EXEC[e.status]], ['Início', dataHora(e.inicio)], ['Fim', e.fim ? dataHora(e.fim) : 'ainda rodando'],
+      ['Duração', (e.status === 'rodando' ? relativo(e.inicio).replace('há ', '') : duracao(e.duracao_s)) + ' · média ' + duracao(a.duracao_media_s)], ['VM', e.maquina || a.maquina],
+      ['Itens OK', num(e.itens_ok) + (e.itens_previstos ? ' de ' + num(e.itens_previstos) : '')], ['Itens com exceção', num(e.itens_erro)],
+    ];
+    if (e.etapa) campos.push(['Etapa', e.etapa]);
+    if (e.erro_tipo) campos.push(['Tipo do erro', e.erro_tipo]);
+    campos.push(['Origem', e.origem ? origem[e.origem] + (e.disparada_por ? ': ' + e.disparada_por : '') : 'Agenda']);
+    return '<tr class="execs__mais"><td colspan="5"><div class="exec-mais">' +
+      '<dl class="exec-ficha">' + campos.map((c) => '<div><dt>' + c[0] + '</dt><dd>' + esc(c[1]) + '</dd></div>').join('') + '</dl>' +
+      (e.mensagem ? '<p class="exec-msg exec-msg--' + EXEC_PARA_ESTADO[e.status] + '">' + esc(e.mensagem) + '</p>' : '') +
+      blocoLog(a, e) + '</div></td></tr>';
   }
 
   function formReconhecer(al) {
@@ -700,6 +813,7 @@
 
   // ---------- Indicadores ----------
   function telaIndicadores() {
+    if (OP && S.indAba === 'resumos') return telaResumos();
     const dias = S.periodo === 'hoje' ? 1 : S.periodo === '7d' ? 7 : 30;
     const ini = new Date(); ini.setHours(0, 0, 0, 0); ini.setDate(ini.getDate() - (dias - 1));
     const execs = [];
@@ -733,7 +847,7 @@
 
     const periodos = [['hoje', 'Hoje'], ['7d', '7 dias'], ['30d', '30 dias']];
     return '<div class="pagina pagina--larga">' +
-      '<header class="pagina__cab"><h1>Indicadores</h1>' +
+      '<header class="pagina__cab"><h1>Indicadores</h1>' + (OP ? abasInd() : '') +
         '<div class="segmentado" role="group" aria-label="Período">' + periodos.map((p) => '<button type="button" data-periodo="' + p[0] + '" aria-pressed="' + (S.periodo === p[0]) + '">' + p[1] + '</button>').join('') + '</div></header>' +
       '<dl class="resumo">' +
         '<div><dt>Execuções</dt><dd>' + num(tot) + '</dd></div>' +
@@ -783,6 +897,200 @@
       '<span class="barras__trilho"><span class="barras__val" style="width:' + Math.max(1, (x.v / max) * 100).toFixed(1) + '%"></span></span><span class="barras__num num">' + x.txt + '</span></li>').join('') + '</ul>';
   }
 
+  // ---------- Resumos executivos (V6, dentro de Indicadores) ----------
+  // Cada resumo é um texto pronto para levar à gestão ou para conferir o dia. No sistema real os números
+  // vêm do servidor (mesmas regras dos indicadores); aqui são calculados sobre os dados de demonstração.
+  const TIPOS_RESUMO = [
+    { id: 'dia', nome: 'Operação do dia', desc: 'O que rodou hoje, o que falhou e o que ainda depende de alguém.', periodos: ['hoje'] },
+    { id: 'semana', nome: 'Semana para a gestão', desc: 'Últimos 7 dias comparados com os 7 anteriores.', periodos: ['7d'] },
+    { id: 'area', nome: 'Por área', desc: 'Os números de uma área, para mandar ao gestor dela.', periodos: ['hoje', '7d', '30d'] },
+    { id: 'conferencia', nome: 'Conferência: previsto × realizado', desc: 'Quantas execuções a agenda previa e quantas rodaram. Marque o que já conferiu.', periodos: ['hoje', '7d', '30d'] },
+    { id: 'incidentes', nome: 'Falhas e tratativas', desc: 'Cada falha do período, quem reconheceu e quando voltou a dar certo.', periodos: ['hoje', '7d', '30d'] },
+  ];
+  const NOME_PERIODO = { hoje: 'Hoje', '7d': 'Últimos 7 dias', '30d': 'Últimos 30 dias' };
+  const DIAS_PERIODO = { hoje: 1, '7d': 7, '30d': 30 };
+
+  function inicioDe(dias) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (dias - 1)); return d; }
+  function execsEntre(ini, fim) {
+    const l = [];
+    Object.entries(D.execucoes).forEach(([id, ex]) => ex.forEach((e) => { const t = new Date(e.inicio); if (t >= ini && t < fim && e.status !== 'rodando') l.push(Object.assign({ a: porId[id] }, e)); }));
+    return l;
+  }
+  function contas(l) {
+    const falhas = l.filter((e) => e.status === 'falha').length;
+    return {
+      tot: l.length, falhas, ress: l.filter((e) => e.status === 'ressalva').length,
+      taxa: l.length ? (l.length - falhas) / l.length : 1,
+      itens: l.reduce((s, e) => s + e.itens_ok, 0),
+      horas: l.reduce((s, e) => s + e.itens_ok * e.a.minutos_poupados_por_item / 60, 0),
+    };
+  }
+  const pp = (x) => (x >= 0 ? '+' : '−') + Math.abs(x * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' p.p.';
+  const varPct = (a, b) => (b ? (a - b) / b : 0);
+  const sinal = (x) => (x >= 0 ? '+' : '−') + Math.abs(Math.round(x * 100)) + '%';
+  function tabelaRes(cab, linhas, numCols) {
+    return '<div class="tabela-rolagem"><table class="comparativo doc__tabela"><thead><tr>' + cab.map((c, i) => '<th scope="col"' + (numCols.includes(i) ? ' class="num"' : '') + '>' + c + '</th>').join('') + '</tr></thead><tbody>' +
+      linhas.map((l) => '<tr' + (l.cls ? ' class="' + l.cls + '"' : '') + '>' + l.c.map((v, i) => (i === 0 ? '<th scope="row">' : '<td' + (numCols.includes(i) ? ' class="num"' : '') + '>') + v + (i === 0 ? '</th>' : '</td>')).join('') + '</tr>').join('') + '</tbody></table></div>';
+  }
+
+  function montarResumo(tipo, periodo) {
+    const agoraD = new Date();
+    const ini = inicioDe(DIAS_PERIODO[periodo]);
+    const execs = execsEntre(ini, new Date(agoraD.getTime() + 1));
+    const c = contas(execs);
+    const R = { nums: [], secoes: [] };
+    const sec = (titulo, html, texto) => R.secoes.push({ titulo, html, texto });
+    const lista = (itens) => (itens.length ? '<ul class="doc__lista">' + itens.map((x) => '<li>' + x.h + '</li>').join('') + '</ul>' : '');
+
+    if (tipo === 'dia' || tipo === 'semana') {
+      const abertos = alertasAbertos();
+      if (tipo === 'dia') {
+        R.titulo = 'Operação do dia';
+        R.frase = 'Hoje rodaram ' + num(c.tot) + ' execuções, ' + pct(c.taxa) + ' sem falha. ' +
+          (abertos.length ? abertos.length + (abertos.length === 1 ? ' automação precisa' : ' automações precisam') + ' de ação manual' : 'Nada depende de ação manual') +
+          ', e ' + D.fila.filter((f) => f.situacao === 'aguardando' && !f.ignorada).length + ' execuções esperam robô.';
+        R.nums = [['Execuções', num(c.tot)], ['Sem falha', pct(c.taxa)], ['Itens processados', num(c.itens)], ['Horas poupadas', num(c.horas) + ' h']];
+      } else {
+        const ant = contas(execsEntre(new Date(ini.getTime() - 7 * 864e5), ini));
+        R.titulo = 'Semana para a gestão';
+        R.frase = 'Nos últimos 7 dias as automações rodaram ' + num(c.tot) + ' vezes, ' + pct(c.taxa) + ' sem falha (' + pp(c.taxa - ant.taxa) + ' sobre a semana anterior), e pouparam ' + num(c.horas) + ' horas de trabalho manual, cerca de ' + num(c.horas / 8) + ' dias de uma pessoa.';
+        R.nums = [['Execuções', num(c.tot), sinal(varPct(c.tot, ant.tot)) + ' na semana'], ['Sem falha', pct(c.taxa), pp(c.taxa - ant.taxa)], ['Horas poupadas', num(c.horas) + ' h', sinal(varPct(c.horas, ant.horas))], ['Falhas', num(c.falhas), (c.falhas - ant.falhas >= 0 ? '+' : '−') + Math.abs(c.falhas - ant.falhas) + ' na semana']];
+        const porAuto = D.automacoes.map((a) => { const l = execs.filter((e) => e.a.id === a.id); return { a, ...contas(l) }; });
+        const top = porAuto.slice().sort((x, y) => y.horas - x.horas).slice(0, 3);
+        sec('Destaques', lista(top.map((x) => ({ h: '<strong>' + esc(x.a.nome) + '</strong>: ' + num(x.horas) + ' h poupadas em ' + num(x.tot) + ' execuções' }))),
+          top.map((x) => '- ' + x.a.nome + ': ' + num(x.horas) + ' h poupadas em ' + num(x.tot) + ' execuções').join('\n'));
+        const piores = porAuto.filter((x) => x.falhas).sort((x, y) => y.falhas - x.falhas).slice(0, 3);
+        const areasBaixas = AREAS.map((ar) => ({ ar, ...contas(execs.filter((e) => e.a.area === ar)) })).filter((x) => x.taxa < 0.95);
+        const pts = piores.map((x) => ({ h: '<strong>' + esc(x.a.nome) + '</strong> falhou ' + x.falhas + ' de ' + x.tot + ' vezes', t: x.a.nome + ' falhou ' + x.falhas + ' de ' + x.tot + ' vezes' }))
+          .concat(areasBaixas.map((x) => ({ h: 'Área <strong>' + esc(x.ar) + '</strong> abaixo de 95% sem falha (' + pct(x.taxa) + ')', t: 'Área ' + x.ar + ' abaixo de 95% sem falha (' + pct(x.taxa) + ')' })));
+        sec('Pontos de atenção', pts.length ? lista(pts) : '<p>Nenhum ponto de atenção na semana.</p>', pts.length ? pts.map((x) => '- ' + x.t).join('\n') : 'Nenhum ponto de atenção na semana.');
+      }
+      if (tipo === 'dia') {
+        const itens = abertos.map((al) => { const a = porId[al.automacao_id]; return { h: '<strong>' + esc(a.nome) + '</strong>: ' + esc(al.titulo.toLowerCase()) + ' desde ' + hora(al.desde) + ' <span class="fraco">(' + esc(al.mensagem) + ')</span>', t: a.nome + ': ' + al.titulo.toLowerCase() + ' desde ' + hora(al.desde) + ' (' + al.mensagem + ')' }; });
+        sec('Precisa de decisão', itens.length ? lista(itens) : '<p>Nada em aberto.</p>', itens.length ? itens.map((x) => '- ' + x.t).join('\n') : 'Nada em aberto.');
+        const ag = D.fila.filter((f) => f.situacao === 'aguardando' && !f.ignorada);
+        const maior = ag.length ? Math.max(...ag.map((f) => Date.now() - new Date(f.entrou_em).getTime())) / 60000 : 0;
+        const filaTxt = textoVMs() + '. ' + (ag.length ? ag.length + ' esperando robô, a mais antiga há ' + Math.round(maior) + ' min.' : 'Ninguém esperando robô.') + ' ' + D.fila.filter((f) => f.situacao === 'agendada').length + ' agendadas para as próximas horas.';
+        sec('VMs e fila agora', '<p>' + esc(filaTxt) + '</p>', filaTxt);
+      }
+      const porArea = AREAS.map((ar) => ({ ar, ...contas(execs.filter((e) => e.a.area === ar)) })).filter((x) => x.tot).sort((x, y) => x.taxa - y.taxa);
+      sec('Por área', tabelaRes(['Área', 'Execuções', 'Falhas', 'Sem falha', 'Horas poupadas'], porArea.map((x) => ({ cls: x.taxa < 0.95 ? 'doc__l--alerta' : '', c: [esc(x.ar), num(x.tot), num(x.falhas), pct(x.taxa), num(x.horas) + ' h'], t: x.ar + ': ' + num(x.tot) + ' execuções, ' + pct(x.taxa) + ' sem falha, ' + num(x.horas) + ' h poupadas' })), [1, 2, 3, 4]),
+        porArea.map((x) => '- ' + x.ar + ': ' + num(x.tot) + ' execuções, ' + pct(x.taxa) + ' sem falha, ' + num(x.horas) + ' h poupadas').join('\n'));
+    }
+
+    if (tipo === 'area') {
+      const ar = S.resumoArea || AREAS[0];
+      const doArea = D.automacoes.filter((a) => a.area === ar);
+      const l = execs.filter((e) => e.a.area === ar); const ca = contas(l);
+      const abertos = alertasAbertos().filter((al) => porId[al.automacao_id].area === ar);
+      R.titulo = 'Área ' + ar;
+      R.frase = NOME_PERIODO[periodo] + ', as ' + doArea.length + ' automações de ' + ar + ' rodaram ' + num(ca.tot) + ' vezes, ' + pct(ca.taxa) + ' sem falha, e pouparam ' + num(ca.horas) + ' h. ' +
+        (abertos.length ? abertos.length + ' precisam de ação manual agora.' : 'Nenhuma precisa de ação manual agora.');
+      R.nums = [['Automações', num(doArea.length)], ['Execuções', num(ca.tot)], ['Sem falha', pct(ca.taxa)], ['Horas poupadas', num(ca.horas) + ' h']];
+      const linhas = doArea.map((a) => { const x = contas(l.filter((e) => e.a.id === a.id)); return { cls: x.falhas ? 'doc__l--alerta' : '', c: [esc(a.nome), num(x.tot), num(x.falhas), num(x.itens), num(x.horas) + ' h', chip(a.estado)], t: a.nome + ': ' + num(x.tot) + ' execuções, ' + x.falhas + ' falhas, ' + num(x.horas) + ' h poupadas, agora ' + ESTADOS[a.estado].curto.toLowerCase() }; });
+      sec('Automações da área', tabelaRes(['Automação', 'Execuções', 'Falhas', 'Itens', 'Horas poupadas', 'Agora'], linhas, [1, 2, 3, 4]), linhas.map((x) => '- ' + x.t).join('\n'));
+      if (abertos.length) sec('Pendências', lista(abertos.map((al) => ({ h: '<strong>' + esc(porId[al.automacao_id].nome) + '</strong>: ' + esc(al.titulo) }))), abertos.map((al) => '- ' + porId[al.automacao_id].nome + ': ' + al.titulo).join('\n'));
+    }
+
+    if (tipo === 'conferencia') {
+      const linhas = D.automacoes.map((a) => {
+        const real = execsDe(a.id).filter((e) => new Date(e.inicio) >= ini).length;
+        const falhas = execsDe(a.id).filter((e) => new Date(e.inicio) >= ini && e.status === 'falha').length;
+        const prev = a.previstas[periodo];
+        const faltou = Math.max(0, prev - real);
+        const sit = a.estado === 'pausado' && !prev ? 'pausada' : faltou ? 'faltou' : falhas ? 'falha' : 'confere';
+        const val = S.validadas[periodo + ':' + a.id];
+        return { a, real, falhas, prev, faltou, extra: Math.max(0, real - prev), sit, val };
+      });
+      const ordem = { faltou: 0, falha: 1, confere: 2, pausada: 3 };
+      linhas.sort((x, y) => ordem[x.sit] - ordem[y.sit] || x.a.nome.localeCompare(y.a.nome, 'pt-BR'));
+      const div = linhas.filter((x) => x.sit === 'faltou' || x.sit === 'falha');
+      const validadas = linhas.filter((x) => x.val).length;
+      R.titulo = 'Conferência: previsto × realizado';
+      R.frase = (linhas.length - div.length) + ' de ' + linhas.length + ' automações rodaram tudo o que a agenda previa, sem falha. ' + (div.length ? div.length + ' têm divergência para conferir.' : 'Nenhuma divergência.') + ' ' + (validadas === 1 ? '1 já foi conferida' : validadas + ' já foram conferidas') + ' por alguém do time.';
+      R.nums = [['Previstas', num(linhas.reduce((s, x) => s + x.prev, 0))], ['Realizadas', num(linhas.reduce((s, x) => s + x.real, 0))], ['Com divergência', num(div.length)], ['Conferidas', validadas + ' de ' + linhas.length]];
+      const SIT = { confere: ['ok', 'Confere'], falha: ['falha', 'Teve falha'], faltou: ['atrasado', 'Faltou executar'], pausada: ['pausado', 'Pausada'] };
+      const mostrar = S.soDivergentes ? div : linhas;
+      R.extraCtrl = '<label class="alternar"><input type="checkbox" id="so-divergentes"' + (S.soDivergentes ? ' checked' : '') + '><span>Só divergências</span></label>';
+      sec('Automação por automação', mostrar.length ? tabelaRes(['Automação', 'Previstas', 'Realizadas', 'Falhas', 'Faltaram', 'Situação', 'Conferido'], mostrar.map((x) => ({
+        cls: x.sit === 'faltou' || x.sit === 'falha' ? 'doc__l--alerta' : '',
+        c: ['<button type="button" class="link link--texto" data-abrir="' + x.a.id + '">' + esc(x.a.nome) + '</button>', num(x.prev), num(x.real) + (x.extra ? ' <span class="fraco">(+' + x.extra + ' fora da agenda)</span>' : ''), num(x.falhas), num(x.faltou), chip(SIT[x.sit][0], SIT[x.sit][1]),
+          '<label class="validar"><input type="checkbox" data-validar="' + periodo + ':' + x.a.id + '"' + (x.val ? ' checked' : '') + '><span>' + (x.val ? esc(x.val.por) + ' ' + hora(x.val.em) : 'Conferir') + '</span><span class="sr"> ' + esc(x.a.nome) + '</span></label>'],
+      })), [1, 2, 3, 4]) : '<p>Nenhuma divergência no período.</p>',
+      linhas.map((x) => '- ' + x.a.nome + ': ' + x.real + ' de ' + x.prev + ' previstas, ' + x.falhas + ' falhas · ' + SIT[x.sit][1] + (x.val ? ' · conferido por ' + x.val.por : '')).join('\n'));
+    }
+
+    if (tipo === 'incidentes') {
+      const fal = execs.filter((e) => e.status === 'falha').sort((x, y) => new Date(y.inicio) - new Date(x.inicio));
+      const comVolta = fal.map((e) => {
+        const l = execsDe(e.a.id);
+        const i = l.findIndex((x) => x.id === e.id);
+        const volta = l.slice(0, i).reverse().find((x) => x.status !== 'falha' && x.status !== 'rodando');
+        const al = D.alertas.find((x) => x.automacao_id === e.a.id && x.tipo === 'falha');
+        return { e, volta, rec: !volta && al ? reconhecimento(al) : null };
+      });
+      const resolvidas = comVolta.filter((x) => x.volta);
+      const tempoMed = resolvidas.length ? resolvidas.reduce((s, x) => s + (new Date(x.volta.fim) - new Date(x.e.fim)), 0) / resolvidas.length / 1000 : 0;
+      const atrasos = alertasAbertos().filter((al) => al.tipo === 'atraso');
+      R.titulo = 'Falhas e tratativas';
+      R.frase = NOME_PERIODO[periodo] + ' foram ' + fal.length + ' falhas em ' + new Set(fal.map((x) => x.a.id)).size + ' automações. ' + resolvidas.length + ' já voltaram a dar certo, em média ' + duracao(tempoMed) + ' depois. ' +
+        (comVolta.length - resolvidas.length ? (comVolta.length - resolvidas.length) + ' seguem em aberto.' : 'Nenhuma segue em aberto.') + (atrasos.length ? ' Além disso, ' + atrasos.length + ' automações estão atrasadas, sem sinal.' : '');
+      R.nums = [['Falhas', num(fal.length)], ['Automações afetadas', num(new Set(fal.map((x) => x.a.id)).size)], ['Voltaram a dar certo', num(resolvidas.length)], ['Tempo médio até voltar', resolvidas.length ? duracao(tempoMed) : '—']];
+      const vis = comVolta.slice(0, 40);
+      sec('Falha por falha', comVolta.length ? tabelaRes(['Quando', 'Automação', 'Erro', 'Situação'], vis.map((x) => ({
+        cls: x.volta ? '' : 'doc__l--alerta',
+        c: [dataHora(x.e.inicio), '<button type="button" class="link link--texto" data-abrir="' + x.e.a.id + '" data-abrir-exec="' + x.e.id + '">' + esc(x.e.a.nome) + '</button> <span class="fraco">' + numero(x.e.id) + '</span>', esc(x.e.mensagem),
+          x.volta ? 'Voltou ' + dataHora(x.volta.inicio) : 'Em aberto' + (x.rec ? ' · reconhecida por ' + esc(x.rec.por) + (x.rec.nota ? ': “' + esc(x.rec.nota) + '”' : '') : ' · ninguém reconheceu')],
+      })), []) + (comVolta.length > vis.length ? '<p class="nota">e mais ' + (comVolta.length - vis.length) + ' falhas mais antigas no período.</p>' : '') : '<p>Nenhuma falha no período.</p>',
+      comVolta.map((x) => '- ' + dataHora(x.e.inicio) + ' · ' + x.e.a.nome + ' (' + numero(x.e.id) + '): ' + x.e.mensagem + ' · ' + (x.volta ? 'voltou ' + dataHora(x.volta.inicio) : 'em aberto')).join('\n'));
+      if (atrasos.length) sec('Atrasadas agora', lista(atrasos.map((al) => ({ h: '<strong>' + esc(porId[al.automacao_id].nome) + '</strong>: ' + esc(al.mensagem) }))), atrasos.map((al) => '- ' + porId[al.automacao_id].nome + ': ' + al.mensagem).join('\n'));
+    }
+    return R;
+  }
+
+  function telaResumos() {
+    const tipo = TIPOS_RESUMO.find((t) => t.id === S.resumo) || TIPOS_RESUMO[0];
+    const periodo = tipo.periodos.includes(S.periodo) ? S.periodo : tipo.periodos[0];
+    const R = montarResumo(tipo.id, periodo);
+    const gerado = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return '<div class="pagina pagina--larga">' +
+      '<header class="pagina__cab"><h1>Indicadores</h1>' + abasInd() + '</header>' +
+      '<div class="resumos">' +
+        '<nav class="resumos__tipos" aria-label="Tipo de resumo"><p class="resumos__rot">Escolha o resumo</p>' + TIPOS_RESUMO.map((t) =>
+          '<button type="button" class="resumos__tipo" data-resumo="' + t.id + '" aria-pressed="' + (t.id === tipo.id) + '"><strong>' + t.nome + '</strong><span>' + t.desc + '</span></button>').join('') + '</nav>' +
+        '<div class="resumos__corpo">' +
+          '<div class="resumos__ctrl">' +
+            (tipo.periodos.length > 1 ? '<div class="segmentado segmentado--peq" role="group" aria-label="Período">' + tipo.periodos.map((p) => '<button type="button" data-periodo="' + p + '" aria-pressed="' + (p === periodo) + '">' + NOME_PERIODO[p].replace('Últimos ', '') + '</button>').join('') + '</div>' : '') +
+            (tipo.id === 'area' ? '<label class="campo-select"><span class="sr">Área</span><select id="resumo-area">' + AREAS.map((ar) => '<option' + ((S.resumoArea || AREAS[0]) === ar ? ' selected' : '') + '>' + esc(ar) + '</option>').join('') + '</select></label>' : '') +
+            (R.extraCtrl || '') +
+            '<span class="resumos__botoes"><button type="button" class="botao botao--sec botao--peq" data-acao="copiar-resumo">' + ico('copiar') + '<span>Copiar texto</span></button>' +
+            '<button type="button" class="botao botao--sec botao--peq" data-acao="imprimir">' + ico('imprimir') + '<span>Imprimir ou PDF</span></button></span>' +
+          '</div>' +
+          '<article class="doc" aria-labelledby="t-doc">' +
+            '<header class="doc__cab"><p class="doc__kicker">Resumo executivo · Monitor de Automações</p><h2 id="t-doc">' + esc(R.titulo) + '</h2><p class="doc__meta">' + NOME_PERIODO[periodo] + ' · gerado em ' + gerado + ' · dados de demonstração</p></header>' +
+            '<p class="doc__frase">' + esc(R.frase) + '</p>' +
+            '<dl class="doc__nums">' + R.nums.map((n) => '<div><dt>' + n[0] + '</dt><dd>' + n[1] + (n[2] ? '<span class="doc__var">' + n[2] + '</span>' : '') + '</dd></div>').join('') + '</dl>' +
+            R.secoes.map((s) => '<section class="doc__sec"><h3>' + s.titulo + '</h3>' + s.html + '</section>').join('') +
+          '</article>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function textoResumo() {
+    const tipo = TIPOS_RESUMO.find((t) => t.id === S.resumo) || TIPOS_RESUMO[0];
+    const periodo = tipo.periodos.includes(S.periodo) ? S.periodo : tipo.periodos[0];
+    const R = montarResumo(tipo.id, periodo);
+    return [R.titulo + ' · ' + NOME_PERIODO[periodo], '', R.frase, '', R.nums.map((n) => n[0] + ': ' + n[1] + (n[2] ? ' (' + n[2] + ')' : '')).join(' · ')]
+      .concat(R.secoes.map((s) => '\n' + s.titulo.toUpperCase() + '\n' + s.texto)).join('\n');
+  }
+
+  function abasInd() {
+    return '<div class="segmentado" role="group" aria-label="Indicadores">' +
+      '<button type="button" data-ind-aba="graficos" aria-pressed="' + (S.indAba === 'graficos') + '">Painel de indicadores</button>' +
+      '<button type="button" data-ind-aba="resumos" aria-pressed="' + (S.indAba === 'resumos') + '">Resumos executivos</button></div>';
+  }
+
   // ---------- Modo TV ----------
   function telaTV() {
     if (OP) return telaTVOp();
@@ -816,29 +1124,31 @@
     }
   }
 
-  // Na organização "operacao": os cartões diminuem até caber e a fila mostra só o que cabe.
+  // Na V6: as VMs diminuem a letra até caber; a fila e a ação manual mostram só o que cabe.
   function ajustarTVOp() {
     const agora = document.querySelector('.tv__agora');
-    const fila = document.querySelector('.tv__fila');
-    if (!agora || !fila) return;
+    if (!agora) return;
     let tam = 100;
     agora.style.fontSize = '';
     while (agora.scrollHeight > agora.clientHeight + 1 && tam > 60) { tam -= 4; agora.style.fontSize = tam + '%'; }
-    const lista = fila.querySelector('.fila__lista');
-    const total = lista ? lista.children.length : 0;
-    let mais = null;
-    while (lista && fila.scrollHeight > fila.clientHeight + 1 && lista.children.length > 1) {
-      lista.lastElementChild.remove();
-      if (!mais) { mais = document.createElement('p'); mais.className = 'atencao__mais'; fila.appendChild(mais); }
-      const resto = total - lista.children.length;
-      mais.textContent = 'e mais ' + resto + ' na fila';
-    }
+    [['.tv__fila', '.fila__lista', ' na fila'], ['.tv__manual', '.manuais', ' para ação manual (veja no painel)']].forEach(([col, ls, txt]) => {
+      const c = document.querySelector(col); const lista = c && c.querySelector(ls);
+      if (!lista) return;
+      const total = lista.children.length; let mais = null;
+      while (c.scrollHeight > c.clientHeight + 1 && lista.children.length > 1) {
+        lista.lastElementChild.remove();
+        if (!mais) { mais = document.createElement('p'); mais.className = 'atencao__mais'; c.appendChild(mais); }
+        mais.textContent = 'e mais ' + (total - lista.children.length) + txt;
+      }
+    });
   }
 
   // ---------- Roteamento e render ----------
   function lerRota() {
     const partes = (location.hash || '#/geral').replace(/^#\/?/, '').split('/');
-    const rota = ['geral', 'alertas', 'indicadores', 'tv'].includes(partes[0]) ? partes[0] : 'geral';
+    // Na V6 a aba Alertas virou a coluna "Necessária ação manual" do painel, e entrou a aba Automações.
+    const rotas = OP ? ['geral', 'automacoes', 'indicadores', 'tv'] : ['geral', 'alertas', 'indicadores', 'tv'];
+    const rota = rotas.includes(partes[0]) ? partes[0] : 'geral';
     return { rota, id: partes[1] && porId[partes[1]] ? partes[1] : null };
   }
 
@@ -849,15 +1159,16 @@
     S.rota = rota;
     const tv = document.getElementById('tv');
     document.body.classList.toggle('modo-tv', rota === 'tv');
-    if (rota === 'tv') { tv.hidden = false; tv.innerHTML = telaTV(); atualizarRelogios(); ajustarTV(); return; }
+    if (rota === 'tv') { tv.hidden = false; tv.className = 'tv' + (OP ? ' tv--op' : ''); tv.innerHTML = telaTV(); atualizarRelogios(); ajustarTV(); return; }
     tv.hidden = true; tv.innerHTML = '';
 
-    if (id !== S.sel && !(cfg.visao === 'mestre' && !id)) { S.sel = id; S.execSel = null; S.execsVisiveis = 12; S.nivelLog = 'todos'; }
+    if (id !== S.sel && !(ehMestre(rota) && !id)) { S.sel = id; S.execSel = null; S.execsVisiveis = 12; S.nivelLog = 'todos'; }
+    if (S.execPendente) { S.execSel = S.execPendente; S.execPendente = null; }
     document.querySelectorAll('.nav__item').forEach((n) => { if (n.dataset.rota === rota) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current'); });
     const abertos = alertasAbertos().length;
     const badge = document.getElementById('badge-alertas');
     badge.textContent = abertos || ''; badge.hidden = !abertos;
-    badge.setAttribute('aria-label', abertos + ' alertas abertos');
+    badge.setAttribute('aria-label', abertos + (OP ? ' para ação manual' : ' alertas abertos'));
 
     const conteudo = document.getElementById('conteudo');
     const rolagem = window.scrollY;
@@ -865,7 +1176,7 @@
     const rolagens = { conteudo: conteudo.scrollTop };
     conteudo.querySelectorAll('[data-rolagem]').forEach((el) => { rolagens[el.dataset.rolagem] = el.scrollTop; });
     conteudo.className = 'conteudo conteudo--' + rota;
-    conteudo.innerHTML = rota === 'alertas' ? telaAlertas() : rota === 'indicadores' ? telaIndicadores() : telaGeral();
+    conteudo.innerHTML = rota === 'alertas' ? telaAlertas() : rota === 'indicadores' ? telaIndicadores() : rota === 'automacoes' ? telaAutomacoes() : telaGeral();
     if (!mudouRota || opcoes.manterRolagem) {
       window.scrollTo(0, rolagem);
       conteudo.scrollTop = rolagens.conteudo;
@@ -874,7 +1185,7 @@
 
     const gaveta = document.getElementById('gaveta');
     const fundo = document.getElementById('gaveta-fundo');
-    const usaGaveta = !(cfg.visao === 'mestre' && rota === 'geral') || window.matchMedia('(max-width: 899px)').matches;
+    const usaGaveta = !ehMestre(rota) || ehCelular();
     if (id && usaGaveta) {
       const rolGaveta = gaveta.hidden ? 0 : gaveta.scrollTop;
       const estavaFechada = gaveta.hidden;
@@ -897,9 +1208,10 @@
   }
   function abrir(id) {
     const rota = S.rota === 'tv' ? 'geral' : S.rota;
-    if (cfg.visao === 'mestre' && rota === 'geral' && !window.matchMedia('(max-width: 899px)').matches) {
+    if (ehMestre(rota) && !ehCelular()) {
       S.sel = id; S.execSel = null; S.execsVisiveis = 12;
-      history.replaceState(null, '', '#/geral/' + id);
+      if (S.execPendente) { S.execSel = S.execPendente; S.execPendente = null; }
+      history.replaceState(null, '', '#/' + rota + '/' + id);
       const alvo = document.getElementById('detalhe-fixo');
       document.querySelectorAll('.mitem').forEach((m) => m.setAttribute('aria-current', String(m.dataset.abrir === id)));
       if (alvo) { alvo.innerHTML = detalhe(porId[id], true); alvo.scrollTop = 0; atualizarRelogios(); }
@@ -912,7 +1224,7 @@
   function rerenderDetalhe() {
     const fixo = document.getElementById('detalhe-fixo');
     const gaveta = document.getElementById('gaveta');
-    if (fixo && cfg.visao === 'mestre' && S.rota === 'geral' && gaveta.hidden) { const r = fixo.scrollTop; fixo.innerHTML = detalhe(porId[S.sel], true); fixo.scrollTop = r; }
+    if (fixo && ehMestre(S.rota) && gaveta.hidden) { const r = fixo.scrollTop; fixo.innerHTML = detalhe(porId[S.sel], true); fixo.scrollTop = r; }
     else if (!gaveta.hidden) { const r = gaveta.scrollTop; gaveta.innerHTML = detalhe(porId[S.sel]); gaveta.scrollTop = r; }
     atualizarRelogios();
   }
@@ -927,46 +1239,115 @@
     document.querySelectorAll('[data-rel]').forEach((el) => { el.textContent = el.dataset.prefixo + relativo(el.dataset.rel); });
   }
 
+  // ---------- Ações da fila (V6) ----------
+  function acaoFila(id, tipo) {
+    S.menuFila = null;
+    if (tipo === 'agendar' || tipo === 'comentar') {
+      S.acaoForm = { id, tipo }; render({ manterRolagem: true });
+      const c = document.querySelector('[data-form-fila][data-id="' + id + '"] input, [data-form-fila][data-id="' + id + '"] textarea');
+      if (c) c.focus();
+      return;
+    }
+    const r = D.acaoNaFila(id, tipo, null, EU);
+    recado(r.ok ? r.msg : r.erro, !r.ok);
+    render({ manterRolagem: true });
+    focarMenu(id, -1);
+  }
+  // idx >= 0 foca um item do menu aberto; -1 devolve o foco ao botão "Ações".
+  function focarMenu(id, idx) {
+    if (!id) return;
+    if (idx >= 0) { const it = document.querySelectorAll('#menu-' + id + ' [role="menuitem"]')[idx]; if (it) { it.focus(); it.closest('.menu').scrollIntoView({ block: 'nearest' }); } return; }
+    const b = document.querySelector('[data-menu-fila="' + id + '"]'); if (b) b.focus();
+  }
+
+  // A cada coleta o painel se redesenha, sem atrapalhar quem está mexendo: com menu, formulário ou campo
+  // em uso, só as VMs e as finalizadas mudam. O foco volta para o mesmo botão.
+  function atualizarPainel() {
+    if (S.rota === 'tv') { const tv = document.getElementById('tv'); tv.innerHTML = telaTV(); atualizarRelogios(); ajustarTV(); return; }
+    if (S.rota !== 'geral') { atualizarRelogios(); return; }
+    const ativo = document.activeElement;
+    const ocupado = S.menuFila || S.acaoForm || S.reconhecendo || (ativo && /^(INPUT|TEXTAREA|SELECT)$/.test(ativo.tagName));
+    if (!ocupado) {
+      let sel = null; let idx = 0;
+      if (ativo && ativo !== document.body) {
+        const attr = ['data-abrir', 'data-menu-fila', 'data-acao', 'data-aba', 'data-reconhecer'].find((x) => ativo.hasAttribute(x));
+        if (attr) { sel = '[' + attr + '="' + ativo.getAttribute(attr) + '"]'; idx = [...document.querySelectorAll(sel)].indexOf(ativo); }
+      }
+      render({ manterRolagem: true });
+      if (sel) { const alvo = document.querySelectorAll(sel)[Math.max(0, idx)]; if (alvo) alvo.focus({ preventScroll: true }); }
+      return;
+    }
+    const ag = document.querySelector('.op__agora'); if (ag) ag.innerHTML = gradeVMs();
+    const cv = document.getElementById('conta-vms'); if (cv) cv.textContent = textoVMs();
+    const fim = document.querySelector('.op__fim'); if (fim) fim.outerHTML = faixaFinalizadas();
+    atualizarRelogios();
+  }
+
   // ---------- Eventos ----------
   function eventos() {
     document.addEventListener('click', (ev) => {
       const t = ev.target;
       const alvo = (sel) => t.closest(sel);
       let el;
-      if ((el = alvo('[data-filtro]'))) { const e = el.dataset.filtro; if (S.filtroEstados.has(e)) S.filtroEstados.delete(e); else S.filtroEstados.add(e); S.verTodas = false; S.aba = 'agora'; const ag = document.querySelector('[data-rolagem="agora"]'); if (ag) ag.scrollTop = 0; return render({ manterRolagem: true }); }
+      // Menu de ações da fila: clicar fora fecha.
+      if (S.menuFila && !alvo('.acoes-fila')) { S.menuFila = null; render({ manterRolagem: true }); if (!alvo('[data-abrir], [data-acao], [data-aba]')) return; }
+      if ((el = alvo('[data-menu-fila]'))) { const id = el.dataset.menuFila; S.menuFila = S.menuFila === id ? null : id; render({ manterRolagem: true }); focarMenu(id, S.menuFila ? 0 : -1); return; }
+      if ((el = alvo('[data-acao-fila]'))) { acaoFila(el.dataset.idFila || el.dataset.id, el.dataset.acaoFila); return; }
+      if ((el = alvo('[data-filtro]'))) { const e = el.dataset.filtro; if (S.filtroEstados.has(e)) S.filtroEstados.delete(e); else S.filtroEstados.add(e); return render({ manterRolagem: true }); }
+      if ((el = alvo('[data-ind-aba]'))) { S.indAba = el.dataset.indAba; return render(); }
+      if ((el = alvo('[data-resumo]'))) { S.resumo = el.dataset.resumo; render({ manterRolagem: true }); const b = document.querySelector('[data-resumo="' + S.resumo + '"]'); if (b) b.focus(); return; }
       if ((el = alvo('[data-aba]'))) { S.aba = el.dataset.aba; return render({ manterRolagem: true }); }
       if ((el = alvo('[data-fila-tec]'))) { S.filaTec = el.dataset.filaTec; return render({ manterRolagem: true }); }
       if ((el = alvo('[data-tec]'))) { S.tec = el.dataset.tec; return render({ manterRolagem: true }); }
       if ((el = alvo('[data-ordem]'))) { const c = el.dataset.ordem; S.ordem = S.ordem.col === c ? (S.ordem.dir === 1 ? { col: c, dir: -1 } : { col: null, dir: 1 }) : { col: c, dir: 1 }; return render({ manterRolagem: true }); }
       if ((el = alvo('[data-periodo]'))) { S.periodo = el.dataset.periodo; return render({ manterRolagem: true }); }
       if ((el = alvo('[data-nivel]'))) { S.nivelLog = el.dataset.nivel; return rerenderDetalhe(); }
-      if ((el = alvo('[data-exec]'))) { S.execSel = el.dataset.exec; rerenderDetalhe(); const b = document.querySelector('.gaveta:not([hidden]) #bloco-log, #detalhe-fixo #bloco-log'); if (b && ev.target.closest('.execs, .grafico')) b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
-      if ((el = alvo('[data-reconhecer]'))) { S.reconhecendo = el.dataset.reconhecer; if (S.rota === 'alertas' && document.getElementById('gaveta').hidden) render({ manterRolagem: true }); else rerenderDetalhe(); const n = document.getElementById('nota-rec'); if (n) n.focus(); return; }
+      if ((el = alvo('[data-exec]'))) { S.execSel = OP && S.execSel === el.dataset.exec ? '' : el.dataset.exec; rerenderDetalhe(); const b = document.querySelector('.gaveta:not([hidden]) #bloco-log, #detalhe-fixo #bloco-log'); if (b && ev.target.closest('.execs, .grafico')) b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+      if ((el = alvo('[data-reconhecer]'))) { S.reconhecendo = el.dataset.reconhecer; if (document.getElementById('gaveta').hidden && !document.getElementById('detalhe-fixo')) render({ manterRolagem: true }); else rerenderDetalhe(); const n = document.getElementById('nota-rec'); if (n) n.focus(); return; }
       if ((el = alvo('[data-copiar]'))) {
         const linhas = D.logDaExecucao(el.dataset.copiar).map((l) => new Date(l.hora).toLocaleTimeString('pt-BR') + ' ' + l.nivel + ' ' + l.msg).join('\n');
         const ok = () => { el.querySelector('span').textContent = 'Copiado'; setTimeout(() => { if (el.isConnected) el.querySelector('span').textContent = 'Copiar'; }, 1600); };
         try { navigator.clipboard.writeText(linhas).then(ok, () => {}); } catch (e) { /* sem área de transferência */ }
         return;
       }
-      if (alvo('[data-ir-log]')) { ev.preventDefault(); const b = (t.closest('.gaveta, #detalhe-fixo') || document).querySelector('#bloco-log'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
-      if ((el = alvo('[data-abrir]'))) { abrir(el.dataset.abrir); return; }
+      if (alvo('[data-ir-log]')) {
+        ev.preventDefault();
+        const caixa = t.closest('.gaveta, #detalhe-fixo') || document;
+        if (OP && !caixa.querySelector('#bloco-log')) { S.execSel = null; rerenderDetalhe(); }
+        const b = (document.querySelector('.gaveta:not([hidden])') || document.getElementById('detalhe-fixo') || document).querySelector('#bloco-log'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if ((el = alvo('[data-abrir]'))) { if (el.dataset.abrirExec) S.execPendente = el.dataset.abrirExec; abrir(el.dataset.abrir); return; }
       if ((el = alvo('[data-acao]'))) {
         const a = el.dataset.acao;
         if (a === 'fechar') return fechar();
-        if (a === 'limpar') { S.filtroEstados.clear(); S.tec = 'todas'; S.area = 'todas'; S.filaTec = 'todas'; S.filaArea = 'todas'; S.verTodas = false; S.busca = ''; document.getElementById('busca').value = ''; return render({ manterRolagem: true }); }
+        if (a === 'limpar') { S.filtroEstados.clear(); S.tec = 'todas'; S.area = 'todas'; S.filaTec = 'todas'; S.filaArea = 'todas'; S.busca = ''; document.getElementById('busca').value = ''; return render({ manterRolagem: true }); }
         if (a === 'tema') return trocarTema();
-        if (a === 'ver-todas') { S.verTodas = true; S.filtroEstados.clear(); return render({ manterRolagem: true }); }
-        if (a === 'ver-agora') { S.verTodas = false; S.filtroEstados.clear(); S.busca = ''; document.getElementById('busca').value = ''; return render({ manterRolagem: true }); }
+        if (a === 'ver-ignoradas') { S.verIgnoradas = !S.verIgnoradas; render({ manterRolagem: true }); const b = document.querySelector('[data-acao="ver-ignoradas"]'); if (b) b.focus(); return; }
+        if (a === 'cancelar-fila') { const id = S.acaoForm && S.acaoForm.id; S.acaoForm = null; render({ manterRolagem: true }); focarMenu(id, -1); return; }
+        if (a === 'copiar-resumo') {
+          const ok = () => { el.querySelector('span').textContent = 'Copiado'; setTimeout(() => { if (el.isConnected) el.querySelector('span').textContent = 'Copiar texto'; }, 1600); };
+          try { navigator.clipboard.writeText(textoResumo()).then(ok, () => recado('O navegador não deixou copiar. Use Imprimir ou PDF.', true)); } catch (e) { recado('O navegador não deixou copiar. Use Imprimir ou PDF.', true); }
+          return;
+        }
+        if (a === 'imprimir') { window.print(); return; }
         if (a === 'fila-ordem') { S.filaOrdem = S.filaOrdem === 'prioridade' ? 'horario' : 'prioridade'; render({ manterRolagem: true }); const b = document.querySelector('[data-acao="fila-ordem"]'); if (b) b.focus(); return; }
         if (a === 'fila-filtros') { S.filaFiltros = !S.filaFiltros; render({ manterRolagem: true }); const b = document.querySelector('[data-acao="fila-filtros"]'); if (b) b.focus(); return; }
         if (a === 'tv') { location.hash = '#/tv'; try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => {}); } catch (e) { /* tela cheia é opcional */ } return; }
         if (a === 'sair-tv') { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); location.hash = '#/geral'; return; }
         if (a === 'mais-execs') { S.execsVisiveis += 12; return rerenderDetalhe(); }
-        if (a === 'cancelar-rec') { S.reconhecendo = null; if (S.rota === 'alertas' && document.getElementById('gaveta').hidden) render({ manterRolagem: true }); else rerenderDetalhe(); return; }
+        if (a === 'cancelar-rec') { S.reconhecendo = null; if (document.getElementById('gaveta').hidden && !document.getElementById('detalhe-fixo')) render({ manterRolagem: true }); else rerenderDetalhe(); return; }
       }
     });
     document.getElementById('gaveta-fundo').addEventListener('click', fechar);
     document.addEventListener('submit', (ev) => {
+      const ff = ev.target.closest('[data-form-fila]');
+      if (ff) {
+        ev.preventDefault();
+        const dados = ff.dataset.formFila === 'agendar' ? { quando: ff.elements.quando.value } : { texto: ff.elements.texto.value };
+        const r = D.acaoNaFila(ff.dataset.id, ff.dataset.formFila, dados, EU);
+        recado(r.ok ? r.msg : r.erro, !r.ok);
+        if (r.ok) { S.acaoForm = null; render({ manterRolagem: true }); }
+        return;
+      }
       const f = ev.target.closest('[data-form-reconhecer]');
       if (!f) return;
       ev.preventDefault();
@@ -978,6 +1359,15 @@
     document.addEventListener('change', (ev) => {
       if (ev.target.id === 'filtro-area') { S.area = ev.target.value; render({ manterRolagem: true }); }
       if (ev.target.id === 'agrupar') { S.agrupar = ev.target.checked; render({ manterRolagem: true }); }
+      if (ev.target.id === 'filtro-estado') { S.filtroEstados.clear(); if (ev.target.value !== 'todos') S.filtroEstados.add(ev.target.value); render({ manterRolagem: true }); const f = document.getElementById('filtro-estado'); if (f) f.focus(); }
+      if (ev.target.id === 'resumo-area') { S.resumoArea = ev.target.value; render({ manterRolagem: true }); const f = document.getElementById('resumo-area'); if (f) f.focus(); }
+      if (ev.target.id === 'so-divergentes') { S.soDivergentes = ev.target.checked; render({ manterRolagem: true }); const f = document.getElementById('so-divergentes'); if (f) f.focus(); }
+      if (ev.target.dataset.validar) {
+        // No sistema real: o servidor grava quem conferiu e quando.
+        const k = ev.target.dataset.validar;
+        if (ev.target.checked) S.validadas[k] = { por: EU, em: new Date().toISOString() }; else delete S.validadas[k];
+        render({ manterRolagem: true }); const f = document.querySelector('[data-validar="' + k + '"]'); if (f) f.focus();
+      }
       if (ev.target.id === 'fila-area') { S.filaArea = ev.target.value; render({ manterRolagem: true }); const f = document.getElementById('fila-area'); if (f) f.focus(); }
     });
     let t;
@@ -985,14 +1375,24 @@
       clearTimeout(t);
       t = setTimeout(() => {
         S.busca = ev.target.value;
-        if (S.rota !== 'geral') location.hash = '#/geral'; else render({ manterRolagem: true });
+        if (S.rota !== 'geral' && !(OP && S.rota === 'automacoes')) location.hash = '#/geral'; else render({ manterRolagem: true });
         const b = document.getElementById('busca'); if (document.activeElement !== b) b.focus();
       }, 150);
     });
     document.addEventListener('keydown', (ev) => {
+      if (S.menuFila && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(ev.key) && ev.target.closest('.acoes-fila')) {
+        ev.preventDefault();
+        const itens = [...document.querySelectorAll('#menu-' + S.menuFila + ' [role="menuitem"]')];
+        const i = itens.indexOf(document.activeElement);
+        const n = ev.key === 'Home' ? 0 : ev.key === 'End' ? itens.length - 1 : ev.key === 'ArrowDown' ? (i + 1) % itens.length : (i - 1 + itens.length) % itens.length;
+        if (itens[n]) itens[n].focus();
+        return;
+      }
       if (ev.key === 'Escape') {
+        if (S.menuFila) { const id = S.menuFila; S.menuFila = null; render({ manterRolagem: true }); focarMenu(id, -1); return; }
+        if (S.acaoForm) { const id = S.acaoForm.id; S.acaoForm = null; render({ manterRolagem: true }); focarMenu(id, -1); return; }
         if (S.rota === 'tv') { location.hash = '#/geral'; return; }
-        if (S.reconhecendo) { S.reconhecendo = null; rerenderDetalhe(); return; }
+        if (S.reconhecendo) { S.reconhecendo = null; if (document.getElementById('gaveta').hidden) render({ manterRolagem: true }); else rerenderDetalhe(); return; }
         if (!document.getElementById('gaveta').hidden) fechar();
       }
       if (ev.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { ev.preventDefault(); document.getElementById('busca').focus(); }
@@ -1001,7 +1401,16 @@
     let largura = window.innerWidth;
     window.addEventListener('resize', () => { if (S.rota === 'tv') { render(); return; } if ((largura < 900) !== (window.innerWidth < 900)) { largura = window.innerWidth; render({ manterRolagem: true }); } });
     // Simula a coleta: no sistema real, a cada 30 s o front busca /api/situacao.
+    // Na V6 a coleta é a cada 15 s e as VMs andam (D.tique faz o papel do servidor).
     setInterval(() => {
+      if (!OP) return;
+      D.tique(); ultimaColeta = new Date();
+      atualizarPainel();
+      const p = document.querySelector('.atualizado__pulso');
+      if (p) { p.classList.remove('pulsou'); void p.offsetWidth; p.classList.add('pulsou'); }
+    }, 15000);
+    setInterval(() => {
+      if (OP) return;
       ultimaColeta = new Date(); atualizarRelogios();
       const p = document.querySelector('.atualizado__pulso');
       if (p) { p.classList.remove('pulsou'); void p.offsetWidth; p.classList.add('pulsou'); }

@@ -89,6 +89,16 @@
   // Prioridade na fila (1 = mais alta), definida por área. No sistema real vem do Orchestrator ou do cadastro.
   const PRIORIDADE_AREA = { Compliance: 1, 'Crédito': 2, 'Cartões': 2, 'Câmbio': 2, 'Cobrança': 3, Cadastro: 3, 'Crédito Rural': 3, 'Operações': 3, Investimentos: 3, Contabilidade: 4, Seguros: 4, 'Consórcio': 4, Pessoas: 5 };
 
+  // As 6 VMs fixas onde os robôs e os scripts rodam. No sistema real a lista vem do cadastro de máquinas do Orchestrator.
+  const VMS = ['VM-RPA-01', 'VM-RPA-02', 'VM-RPA-03', 'VM-RPA-04', 'VM-RPA-05', 'VM-RPA-06'];
+  // Máquina de origem de cada automação (i % 6), com ajuste para duas que estão rodando não caírem na mesma VM.
+  const MAQUINA_FORCADA = { 41: 'VM-RPA-02' };
+  const maquinaDe = (i) => MAQUINA_FORCADA[i] || VMS[i % VMS.length];
+
+  // Início de cada período usado nos indicadores: hoje, 7 e 30 dias (sempre a partir da meia-noite).
+  function inicioPeriodo(dias) { const d = new Date(agora); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (dias - 1)); return d; }
+  const PERIODOS = { hoje: inicioPeriodo(1), '7d': inicioPeriodo(7), '30d': inicioPeriodo(30) };
+
   function ymd(d) { return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
 
   // Horários de execução dos últimos `dias` dias, do mais recente para o mais antigo.
@@ -160,6 +170,7 @@
       const ex = {
         id: 'E' + seqExec,
         automacao_id: id,
+        maquina: maquinaDe(i),
         inicio: inicio.toISOString(),
         fim: new Date(inicio.getTime() + dur * MIN).toISOString(),
         duracao_s: Math.round(dur * 60),
@@ -206,13 +217,19 @@
     let esperadoEm = null;
     if (estadoForcado === 'atrasado') esperadoEm = horarios[1];
 
+    // Execuções previstas pela agenda em cada período (o servidor calcula a partir da agenda cadastrada).
+    // Pausada não conta como prevista depois da pausa.
+    const pausaEm = estadoForcado === 'pausado' ? agora.getTime() - 2 * 1440 * MIN : Infinity;
+    const previstas = {};
+    Object.entries(PERIODOS).forEach(([k, ini]) => { previstas[k] = horarios.filter((h) => h >= ini && h.getTime() < pausaEm).length; });
+
     const ultimas30d = execs.filter((e) => e.status !== 'rodando');
     const sucesso = ultimas30d.filter((e) => e.status === 'sucesso').length;
     const ressalvas = ultimas30d.filter((e) => e.status === 'ressalva').length;
 
     automacoes.push({
       id, nome, area, tecnologia,
-      maquina: tecnologia === 'UiPath' ? 'VM-RPA-0' + ((i % 6) + 1) : 'SRV-PY-0' + ((i % 2) + 1),
+      maquina: maquinaDe(i),
       responsavel: RESP[i % RESP.length],
       agenda: descreveAgenda(intervalo, horaIni),
       intervalo_min: intervalo,
@@ -221,6 +238,7 @@
       minutos_poupados_por_item: minItem,
       estado: estadoForcado,
       prioridade: PRIORIDADE_AREA[area] || 3,
+      previstas,
       esperado_em: esperadoEm ? esperadoEm.toISOString() : null,
       pausada_por: estadoForcado === 'pausado' ? (i === 25 ? 'Diego S.: aguardando mudança no portal da administradora' : 'Juliana B.: substituída pela nova versão (A033)') : null,
       ultima_execucao: ultima,
@@ -296,7 +314,7 @@
   }
 
   // Etapa atual de quem está rodando (o robô informa no log; nos scripts Python, a última linha de etapa).
-  const ETAPAS = ['Conferindo documentos', 'Lançando no sistema', 'Lendo a fila de entrada', 'Validando retorno do sistema', 'Gerando evidências'];
+  const ETAPAS = ['Lendo a fila de entrada', 'Conferindo documentos', 'Lançando no sistema', 'Validando retorno do sistema', 'Gerando evidências'];
   automacoes.filter((a) => a.estado === 'rodando').forEach((a, k) => {
     const u = a.ultima_execucao;
     const itensMed = CATALOGO[Number(a.id.slice(1)) - 1][6];
@@ -324,12 +342,103 @@
     .forEach((a) => fila.push({ automacao_id: a.id, situacao: 'agendada', prioridade: a.prioridade, entrou_em: null, previsto_para: a.proxima_execucao, origem: 'agenda', disparada_por: null }));
   fila.forEach((f, k) => { f.id = 'E' + (seqExec + 1 + k); });
 
+  fila.forEach((f) => { f.comentarios = []; f.historico = []; });
+
+  // VMs: cada uma diz o que está rodando nela agora (execucao_id) ou desde quando está livre.
+  const porId = Object.fromEntries(automacoes.map((a) => [a.id, a]));
+  const vms = VMS.map((id) => {
+    const a = automacoes.find((x) => x.estado === 'rodando' && x.maquina === id);
+    const fins = Object.values(execucoesPorAutomacao).flat().filter((e) => e.maquina === id && e.fim).map((e) => new Date(e.fim).getTime());
+    return {
+      id,
+      situacao: a ? 'ocupada' : 'livre',
+      automacao_id: a ? a.id : null,
+      execucao_id: a ? a.ultima_execucao.id : null,
+      livre_desde: a ? null : new Date(Math.max(agora.getTime() - 6 * MIN, ...fins.filter((t) => t <= agora.getTime()))).toISOString(),
+    };
+  });
+
+  // ----- Daqui para baixo é o que o SERVIDOR faz. No protótipo roda no navegador para a tela ter movimento. -----
+
+  // Põe uma execução da fila para rodar numa VM livre.
+  function iniciarNaVM(f, vm) {
+    const a = porId[f.automacao_id];
+    const itensMed = CATALOGO[Number(a.id.slice(1)) - 1][6];
+    const ex = {
+      id: f.id, automacao_id: a.id, maquina: vm.id, inicio: new Date().toISOString(), fim: null, duracao_s: 0, status: 'rodando',
+      itens_ok: 0, itens_erro: 0, mensagem: '', erro_tipo: '', etapa: ETAPAS[0], itens_previstos: Math.max(1, itensMed), origem: f.origem, disparada_por: f.disparada_por,
+    };
+    execucoesPorAutomacao[a.id].unshift(ex);
+    a.ultima_execucao = ex; a.estado = 'rodando'; a.maquina = vm.id;
+    vm.situacao = 'ocupada'; vm.automacao_id = a.id; vm.execucao_id = ex.id; vm.livre_desde = null;
+    fila.splice(fila.indexOf(f), 1);
+  }
+
+  const proximaDaFila = () => fila.filter((f) => f.situacao === 'aguardando' && !f.ignorada)
+    .sort((x, y) => (y.atender_agora ? 1 : 0) - (x.atender_agora ? 1 : 0) || x.prioridade - y.prioridade || new Date(x.entrou_em) - new Date(y.entrou_em))[0];
+
+  // Um ciclo de coleta: o que estava rodando anda, o que terminou libera a VM, a VM livre pega o próximo da fila
+  // e o que estava agendado e chegou a hora passa para "aguardando robô".
+  function tique() {
+    const t = Date.now();
+    fila.forEach((f) => { if (f.situacao === 'agendada' && new Date(f.previsto_para).getTime() <= t) { f.situacao = 'aguardando'; f.entrou_em = f.previsto_para; } });
+    vms.forEach((vm) => {
+      if (vm.situacao !== 'ocupada') return;
+      const a = porId[vm.automacao_id]; const ex = a.ultima_execucao;
+      ex.duracao_s = Math.round((t - new Date(ex.inicio).getTime()) / 1000);
+      if (ex.duracao_s > a.duracao_media_s * 2.5) return; // travada: é justamente o caso do alerta de duração
+      const frac = ex.duracao_s / a.duracao_media_s;
+      ex.itens_ok = Math.max(ex.itens_ok, Math.min(ex.itens_previstos, Math.floor(frac * ex.itens_previstos)));
+      ex.etapa = ETAPAS[Math.min(ETAPAS.length - 1, Math.floor(frac * ETAPAS.length))];
+      if (frac < 1) return;
+      ex.status = 'sucesso'; ex.fim = new Date(t).toISOString(); ex.itens_ok = ex.itens_previstos; delete ex.etapa;
+      a.estado = 'ok';
+      for (let k = alertas.length - 1; k >= 0; k--) if (alertas[k].automacao_id === a.id) alertas.splice(k, 1); // deu certo: alerta resolvido
+      vm.situacao = 'livre'; vm.automacao_id = null; vm.execucao_id = null; vm.livre_desde = ex.fim;
+    });
+    vms.forEach((vm) => { if (vm.situacao !== 'livre') return; const f = proximaDaFila(); if (f) iniciarNaVM(f, vm); });
+  }
+
+  // Ações do time sobre uma execução que espera robô. No sistema real: POST /api/fila/{id}/acao,
+  // com o servidor conferindo a permissão e gravando quem fez, quando e o quê (auditoria).
+  function acaoNaFila(id, acao, dados, por) {
+    const f = fila.find((x) => x.id === id);
+    if (!f) return { ok: false, erro: 'Essa execução já saiu da fila.' };
+    if (f.situacao !== 'aguardando' && acao !== 'desfazer-ignorar' && acao !== 'comentar') return { ok: false, erro: 'Só dá para agir em quem está aguardando robô.' };
+    const em = new Date().toISOString();
+    let msg = '';
+    if (acao === 'assumir') { f.assumida_por = f.assumida_por ? null : por; msg = f.assumida_por ? 'Você assumiu ' + numeroDe(f) : 'Você soltou ' + numeroDe(f); }
+    else if (acao === 'ignorar') { f.ignorada = { por, em }; msg = numeroDe(f) + ' ignorada: não vai para nenhuma VM'; }
+    else if (acao === 'desfazer-ignorar') { f.ignorada = null; msg = numeroDe(f) + ' voltou para a fila'; }
+    else if (acao === 'atender') {
+      const vm = vms.find((v) => v.situacao === 'livre');
+      if (vm) { f.historico.push({ acao, por, em }); iniciarNaVM(f, vm); return { ok: true, msg: numeroDe(f) + ' começou na ' + vm.id }; }
+      f.atender_agora = true; msg = 'Nenhuma VM livre: ' + numeroDe(f) + ' é a próxima a rodar';
+    } else if (acao === 'agendar') {
+      const quando = new Date(dados && dados.quando);
+      if (isNaN(quando) || quando.getTime() <= Date.now()) return { ok: false, erro: 'Escolha um horário daqui para a frente.' };
+      f.situacao = 'agendada'; f.previsto_para = quando.toISOString(); f.entrou_em = null; f.origem = 'manual'; f.disparada_por = por; f.atender_agora = false;
+      msg = numeroDe(f) + ' agendada para ' + quando.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } else if (acao === 'comentar') {
+      const texto = String((dados && dados.texto) || '').trim().slice(0, 500);
+      if (!texto) return { ok: false, erro: 'Escreva o comentário.' };
+      f.comentarios.push({ por, em, texto }); msg = 'Comentário salvo';
+    } else return { ok: false, erro: 'Ação desconhecida.' };
+    f.historico.push({ acao, por, em });
+    return { ok: true, msg };
+  }
+  function numeroDe(f) { return '#' + f.id.slice(1); }
+
   window.DADOS_DEMO = {
     gerado_em: agora.toISOString(),
     automacoes,
     execucoes: execucoesPorAutomacao,
     alertas,
     fila,
+    vms,
     logDaExecucao,
+    // Só do protótipo (o servidor faz):
+    tique,
+    acaoNaFila,
   };
 })();
