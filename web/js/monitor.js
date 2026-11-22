@@ -216,14 +216,13 @@
           '<a class="nav__item" href="#/automacoes" data-rota="automacoes" title="Automações">' + ico('automacoes') + '<span class="nav__rot">Automações</span></a>' +
           '<a class="nav__item" href="#/indicadores" data-rota="indicadores" title="Indicadores">' + ico('indicadores') + '<span class="nav__rot">Indicadores</span></a>' +
         '</nav>' +
-        '<div class="topo__cel topo__cel--busca"><label class="busca">' + ico('busca') + '<span class="sr">Buscar automação</span><input id="busca" type="search" placeholder="Buscar automação, VM ou número…" autocomplete="off"></label></div>' +
+        '<div class="topo__cel topo__cel--busca"><label class="busca">' + ico('busca') + '<span class="sr">Buscar automação</span><input id="busca" type="search" placeholder="Buscar automação, VM ou processo" autocomplete="off"></label></div>' +
         '<div class="topo__cel topo__acoes">' +
           '<span class="atualizado" aria-live="polite"><span class="atualizado__pulso" aria-hidden="true"></span><span><span class="atualizado__rot">Atualizado às </span><time id="atualizado-hora"></time></span></span>' +
           '<button type="button" class="botao-ico" id="botao-tema" data-acao="tema" title="' + (escuro ? 'Usar tema claro' : 'Usar tema escuro') + '">' + botaoTema() + '</button>' +
           '<button type="button" class="botao botao--sec botao--tv" data-acao="tv" title="Modo TV">' + ico('tv') + '<span>Modo TV</span></button>' +
         '</div>' +
       '</header>' +
-      '<p class="demo-aviso">' + ico('ressalva') + '<span><strong>Dados de demonstração.</strong> Ainda sem servidor: as VMs andam sozinhas a cada 15 s para mostrar a atualização.</span></p>' +
       '<main class="conteudo" id="conteudo" tabindex="-1"></main>' +
       '<div class="gaveta__fundo" id="gaveta-fundo" hidden></div>' +
       '<aside class="gaveta" id="gaveta" aria-label="Detalhe da automação" hidden></aside>' +
@@ -285,7 +284,7 @@
     const quando = ag
       ? '<span class="fitem__quando fitem__quando--aguardando' + (espera > 10 ? ' fitem__quando--demora' : '') + '">Aguardando robô ' + rel(f.entrou_em) + '</span>'
       : '<span class="fitem__quando">Agendada ' + quandoTxt(f.previsto_para) + ' · ' + rel(f.previsto_para) + '</span>';
-    const origem = tv || (!ag && f.origem === 'agenda') ? '' : '<span class="fitem__origem">' + (f.origem === 'manual' ? (ag ? 'Disparada por ' : 'Agendada por ') : 'Gatilho: ') + esc(f.disparada_por) + '</span>';
+    const origem = !ag && f.origem === 'agenda' ? '' : (f.origem === 'manual' ? (ag ? 'Disparada por ' : 'Agendada por ') : 'Gatilho: ') + f.disparada_por;
     const marcas = (f.atender_agora ? '<span class="marca marca--proxima">Próxima a rodar</span>' : '') +
       (f.assumida_por ? '<span class="marca">Assumida por ' + esc(f.assumida_por) + '</span>' : '');
     const coms = f.comentarios || [];
@@ -293,13 +292,13 @@
       coms.slice(-2).map((c) => '<li><strong>' + esc(c.por) + '</strong> <span class="fraco">' + relativo(c.em) + '</span>: ' + esc(c.texto) + '</li>').join('') + '</ul>';
     const abre = tv ? 'div' : 'button';
     return '<li class="fitem fitem--' + f.situacao + (f.atender_agora ? ' fitem--proxima' : '') + (S.menuFila === f.id ? ' fitem--menu' : '') + '">' +
-      '<' + abre + (tv ? '' : ' type="button" data-abrir="' + f.a.id + '"') + ' class="fitem__in">' +
+      '<' + abre + (tv ? '' : ' type="button" data-abrir="' + f.a.id + '"') + ' class="fitem__in"' + (origem && !tv ? ' title="' + esc(origem) + '"' : '') + '>' +
         '<span class="fitem__l1"><span class="fitem__nome">' + esc(f.a.nome) + '</span><span class="fitem__num">' + numero(f.id) + '</span></span>' +
         '<span class="fitem__l2"><span class="tec tec--' + f.a.tecnologia.toLowerCase() + '">' + f.a.tecnologia + '</span><span class="fitem__area">' + esc(f.a.area) + '</span>' +
           '<span class="prio prio--' + f.prioridade + '" title="Prioridade ' + f.prioridade + ' (1 é a mais alta)">Prioridade ' + f.prioridade + '</span></span>' +
-        quando + origem +
+        quando +
       '</' + abre + '>' +
-      (tv ? '' : (marcas || comentarios || ag ? '<div class="fitem__pe">' + (marcas ? '<span class="fitem__marcas">' + marcas + '</span>' : '') + comentarios + (ag ? menuFila(f) : '') + '</div>' : '') + formFila(f)) +
+      (tv ? '' : (ag ? menuFila(f) : '') + (marcas || comentarios ? '<div class="fitem__pe">' + (marcas ? '<span class="fitem__marcas">' + marcas + '</span>' : '') + comentarios + '</div>' : '') + formFila(f)) +
     '</li>';
   }
 
@@ -375,25 +374,15 @@
   }
   const textoVMs = () => { const o = D.vms.filter((v) => v.situacao === 'ocupada').length; return o + ' de ' + D.vms.length + ' VMs rodando'; };
 
-  // ----- Necessária ação manual (o que antes era a aba Alertas), com o trecho do log -----
-  function trechoLog(a, al) {
-    const u = a.ultima_execucao;
-    if (al.tipo === 'atraso') return '<p class="manual__semlog">Sem log desta execução: o robô não iniciou. Último sinal: ' + numero(u.id) + ', que terminou ' + dataHora(u.fim || u.inicio) + '.</p>';
-    let l = D.logDaExecucao(u.id);
-    l = al.tipo === 'duracao' ? l.slice(-3) : l.filter((x) => x.nivel !== 'INFO').slice(-4);
-    if (!l.length) return '';
-    return '<pre class="log log--mini" tabindex="0" aria-label="Trecho do log de ' + numero(u.id) + '">' + l.map((x) => '<span class="log__l log__l--' + x.nivel.toLowerCase() + '"><span class="log__h">' + new Date(x.hora).toLocaleTimeString('pt-BR') + '</span> <span class="log__n">' + x.nivel.padEnd(5) + '</span> ' + esc(x.msg) + '</span>').join('') + '</pre>';
-  }
-
+  // ----- Necessária ação manual (o que antes era a aba Alertas) -----
   function itemManual(al, tv) {
     const a = porId[al.automacao_id]; const r = reconhecimento(al); const u = a.ultima_execucao;
     const est = al.tipo === 'atraso' ? 'atrasado' : al.tipo === 'duracao' ? 'rodando' : al.tipo;
     return '<li class="manual manual--' + est + (al.tipo === 'duracao' ? ' manual--duracao' : '') + (r ? ' manual--rec' : '') + '">' +
       '<p class="manual__tipo">' + ico(al.tipo === 'duracao' ? 'duracao' : est) + '<span>' + esc(al.titulo) + '</span><span class="manual__desde">' + rel(al.desde) + '</span></p>' +
       (tv ? '<p class="manual__nome">' + esc(a.nome) + '</p>' : '<button type="button" class="manual__nome" data-abrir="' + a.id + '">' + esc(a.nome) + '</button>') +
-      '<p class="manual__sub">' + (al.tipo === 'atraso' ? a.id : numero(u.id)) + ' · ' + esc(a.maquina) + ' · ' + a.tecnologia + (tv ? '' : ' · ' + esc(a.responsavel)) + '</p>' +
+      '<p class="manual__sub">' + (al.tipo === 'atraso' ? a.id : numero(u.id)) + ' · ' + esc(a.maquina) + ' · ' + a.tecnologia + '</p>' +
       '<p class="manual__msg">' + esc(al.mensagem) + '</p>' +
-      (tv ? '' : trechoLog(a, al)) +
       (r && !tv ? '<p class="manual__rec">Reconhecido por ' + esc(r.por) + ' ' + relativo(r.em) + (r.nota ? ': “' + esc(r.nota) + '”' : '') + '</p>' : '') +
       (tv ? '' : (S.reconhecendo === al.id ? formReconhecer(al) :
         '<div class="manual__acoes">' + (r ? '' : '<button type="button" class="botao botao--pri botao--peq" data-reconhecer="' + al.id + '">Reconhecer</button>') +

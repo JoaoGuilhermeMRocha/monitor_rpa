@@ -48,7 +48,6 @@
 [data-tema="claro"] .resumo dd, [data-tema="claro"] .tv__relogio { font-style: italic; }
 [data-tema="claro"] .barras__val { background: linear-gradient(90deg, #146E37, #3FA110); }
 [data-tema="claro"] .log { border-radius: 0 14px 14px 14px; }
-[data-tema="claro"] .demo-aviso { background: #f2f7ec; }
 
 /* A faixa de cabeçalhos das colunas é o box verde da marca: "Fila" no verde-escuro, as outras no degradê. */
 [data-tema="claro"] .op__cab--fila { background: #146E37; border-color: #146E37; }
@@ -115,7 +114,6 @@
 [data-tema="escuro"] .botao--sec { background: var(--sup-2); }
 [data-tema="escuro"] .busca input { background: var(--sup); }
 [data-tema="escuro"] .campo-select select { background-color: var(--sup); }
-[data-tema="escuro"] .demo-aviso { background: #121813; }
 [data-tema="escuro"] .gaveta__fundo { background: rgb(0 0 0 / 0.55); }
 [data-tema="escuro"] .tv { --tv-fundo: #0b0f0c; }
 
@@ -133,7 +131,6 @@
 [data-tema="escuro"] .manual--atrasado:not(.manual--rec) .botao--sec { background: rgb(255 255 255 / 0.25); border-color: rgb(0 0 0 / 0.35); color: #1a0d00; }
 [data-tema="escuro"] .manual--falha:not(.manual--rec) .botao--pri { background: #ffffff; color: #8a0033; }
 [data-tema="escuro"] .manual--atrasado:not(.manual--rec) .botao--pri { background: #1a0d00; color: #ffb27a; }
-[data-tema="escuro"] .manual--atrasado .manual__semlog { background: rgb(255 255 255 / 0.3); color: #1a0d00; }
 [data-tema="escuro"] .manual .reconhecer textarea { color: #e8efe6; background: #161d17; }
 [data-tema="escuro"] .op__cab { background: var(--sup); }
 [data-tema="escuro"] .op__cab--fila { background: var(--fila-bg); }

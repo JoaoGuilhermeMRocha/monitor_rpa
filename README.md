@@ -33,7 +33,7 @@ Para outras pessoas da rede acessarem, troque `localhost` pelo nome ou IP da má
 
 ## O que tem na tela
 
-- **Painel**: Fila (com ações em quem aguarda robô) | Agora (as 6 VMs e o que roda em cada uma) | Necessária ação manual (com o trecho do log). No pé, as últimas finalizadas.
+- **Painel**: Fila (com ações em quem aguarda robô) | Agora (as 6 VMs e o que roda em cada uma) | Necessária ação manual (com o Reconhecer e o atalho para o log completo). No pé, as últimas finalizadas.
 - **Automações**: lista e detalhe, com o histórico de execuções; cada execução abre com todos os dados e o log.
 - **Indicadores**: gráficos e resumos executivos (operação do dia, semana para a gestão, por área, conferência previsto × realizado, falhas e tratativas), para copiar ou imprimir.
 - **Modo TV**: o painel em tela cheia, para ler de longe.
@@ -60,10 +60,9 @@ Foram feitas 6 versões de layout, da que segue o manual da marca à risca até 
 
 ## Próximos passos
 
-- Validar com o time e responder as dúvidas em aberto (ver `CLAUDE.md`).
 - Servidor na porta 8001:
   - ler o banco do UiPath Orchestrator e os logs dos scripts Python;
   - aplicar no servidor as regras de alerta: falha, atraso em relação à agenda, duração muito acima do normal e itens enviados para tratamento manual;
   - receber as ações da fila com login e registro de quem fez;
   - entregar os dados no mesmo formato de `dados-demo.js`.
-- Colocar o logo oficial (versões positiva e negativa) em `web/assets/marca/`. A tela tem um espaço reservado, porque o manual proíbe redesenhar o logo.
+- Colocar o logo oficial (versões positiva e negativa) em `web/assets/marca/`.
